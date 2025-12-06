@@ -14,8 +14,17 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+// =============================
+// Asegurar carpeta uploads
+// =============================
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('Carpeta uploads creada:', uploadsDir);
+}
+
 // Multer para subir audio temporalmente
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ dest: uploadsDir });
 
 // =============================
 // STATIC: servir frontend
@@ -31,12 +40,15 @@ app.post('/stt', upload.single('audio'), async (req, res) => {
       return res.status(400).json({ error: 'No se ha recibido ningún archivo de audio' });
     }
 
-    const filePath = req.file.path;
+    const filePath = req.file.path; // sin extensión
+    const newPath = filePath + '.webm'; // le añadimos .webm para que Whisper entienda el formato
+
+    fs.renameSync(filePath, newPath);
 
     // 1) Transcribir audio con Whisper
     const transcription = await openai.audio.transcriptions.create({
       model: 'whisper-1',
-      file: fs.createReadStream(filePath),
+      file: fs.createReadStream(newPath),
       language: 'es'
     });
 
@@ -56,8 +68,8 @@ app.post('/stt', upload.single('audio'), async (req, res) => {
       respuesta.choices?.[0]?.message?.content ||
       'No he recibido contenido de la IA.';
 
-    // Borramos el archivo temporal (no esperamos al callback)
-    fs.unlink(filePath, () => {});
+    // Borramos el archivo temporal renombrado
+    fs.unlink(newPath, () => {});
 
     // Devolvemos JSON al navegador
     res.json({
