@@ -34,6 +34,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 // =============================
 // HTTP: endpoint /stt (voz -> texto -> respuesta IA -> audio)
 // =============================
+// =============================
+// HTTP: endpoint /stt (voz -> texto -> respuesta IA -> audio)
+// =============================
 app.post('/stt', upload.single('audio'), async (req, res) => {
   try {
     if (!req.file) {
@@ -48,7 +51,10 @@ app.post('/stt', upload.single('audio'), async (req, res) => {
     const transcription = await openai.audio.transcriptions.create({
       model: 'whisper-1',
       file: fs.createReadStream(newPath),
-      language: 'es'
+      // Dejamos que se centre en español y en conversación
+      language: 'es',
+      temperature: 0,
+      prompt: 'Transcribe de forma literal lo que dice el usuario en español conversacional. El usuario puede pedir chistes, hacer preguntas cortas, hablar de tecnología, etc.'
     });
 
     const textoUsuario = transcription.text || '';
@@ -74,7 +80,6 @@ app.post('/stt', upload.single('audio'), async (req, res) => {
       input: contenido
     });
 
-    // IMPORTANTE: speech es un Response-like -> hay que pasar por arrayBuffer()
     const audioBuffer = Buffer.from(await speech.arrayBuffer());
     const audioBase64 = audioBuffer.toString('base64');
 
@@ -92,6 +97,7 @@ app.post('/stt', upload.single('audio'), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // =============================
 // WEBSOCKET: debug audio + prueba OpenAI por texto

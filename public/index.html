@@ -3,15 +3,144 @@
 <head>
   <meta charset="UTF-8">
   <title>Agente de voz</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      margin: 0;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.8rem;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    #btnToggle {
+      padding: 0.75rem 1.5rem;
+      border-radius: 999px;
+      border: none;
+      font-size: 1rem;
+      cursor: pointer;
+      background: #22c55e;
+      color: #022c22;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(34, 197, 94, 0.3);
+      transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
+    }
+    #btnToggle:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 15px 30px rgba(34, 197, 94, 0.4);
+      background: #16a34a;
+    }
+    #btnToggle.recording {
+      background: #ef4444;
+      color: #fee2e2;
+      box-shadow: 0 10px 25px rgba(248, 113, 113, 0.3);
+    }
+    .conversation {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .bubble {
+      border-radius: 1rem;
+      padding: 1rem;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .bubble h2 {
+      margin: 0;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #9ca3af;
+    }
+    .bubble p {
+      margin: 0;
+      font-size: 1rem;
+      line-height: 1.5;
+      color: #e5e7eb;
+      white-space: pre-wrap;
+    }
+    .bubble.user {
+      border-left: 3px solid #22c55e;
+    }
+    .bubble.agent {
+      border-left: 3px solid #38bdf8;
+    }
+    details {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: #9ca3af;
+    }
+    summary {
+      cursor: pointer;
+      margin-bottom: 0.5rem;
+    }
+    #log {
+      background: #020617;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      max-height: 220px;
+      overflow: auto;
+      font-size: 0.8rem;
+      border: 1px solid #1f2937;
+      white-space: pre-wrap;
+    }
+    @media (max-width: 700px) {
+      .conversation {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
-  <h1>Agente de voz (prueba)</h1>
-  <button id="btnToggle">Hablar</button>
-  <pre id="log"></pre>
+  <div class="container">
+    <header>
+      <h1>Agente de voz</h1>
+      <p style="margin-top:0.25rem; color:#9ca3af; font-size:0.9rem;">
+        Pulsa <strong>Hablar</strong>, di algo (ej: “cuéntame un chiste corto”) y luego pulsa <strong>Parar</strong>.
+      </p>
+    </header>
+
+    <button id="btnToggle">Hablar</button>
+
+    <section class="conversation">
+      <div class="bubble user">
+        <h2>Tú dijiste</h2>
+        <p id="userText">Aquí verás lo que el sistema entiende de tu voz.</p>
+      </div>
+      <div class="bubble agent">
+        <h2>El agente responde</h2>
+        <p id="agentText">Aquí verás la respuesta generada por la IA.</p>
+      </div>
+    </section>
+
+    <details>
+      <summary>Ver detalles técnicos (logs)</summary>
+      <pre id="log"></pre>
+    </details>
+  </div>
 
   <script>
     const btn = document.getElementById('btnToggle');
     const log = document.getElementById('log');
+    const userTextEl = document.getElementById('userText');
+    const agentTextEl = document.getElementById('agentText');
 
     let mediaRecorder;
     let socket;
@@ -20,6 +149,7 @@
 
     function addLog(msg) {
       log.textContent += msg + "\n";
+      log.scrollTop = log.scrollHeight;
       console.log(msg);
     }
 
@@ -43,9 +173,8 @@
 
         mediaRecorder.ondataavailable = (e) => {
           addLog("Chunk de audio generado, tamaño: " + e.data.size);
-          audioChunks.push(e.data); // guardamos el chunk para STT+TTS
+          audioChunks.push(e.data);
 
-          // Seguimos enviando al WS para debug
           if (e.data.size > 0 && socket && socket.readyState === WebSocket.OPEN) {
             e.data.arrayBuffer().then(buf => {
               addLog("Enviando chunk de audio al servidor (" + buf.byteLength + " bytes)");
@@ -78,10 +207,14 @@
               }
 
               const data = await resp.json();
+
+              // Mostrar claro en la UI
+              userTextEl.textContent = data.transcript || '(no se ha entendido nada claro)';
+              agentTextEl.textContent = data.answer || '(sin respuesta)';
+
               addLog("Transcripción: " + data.transcript);
               addLog("Respuesta IA (texto): " + data.answer);
 
-              // Si viene audio en base64, lo reproducimos
               if (data.audio) {
                 try {
                   addLog("Reproduciendo audio de respuesta...");
@@ -100,9 +233,10 @@
           }
         };
 
-        mediaRecorder.start(500); // trozos cada 500ms
+        mediaRecorder.start(500);
         isRecording = true;
         btn.textContent = 'Parar';
+        btn.classList.add('recording');
       } catch (err) {
         addLog("ERROR al pedir el micrófono: " + err.name + " - " + err.message);
       }
@@ -119,7 +253,6 @@
 
         socket.onopen = () => {
           addLog("WS conectado");
-          // Mensaje de prueba para ver IA por WS
           socket.send("TEST DESDE EL NAVEGADOR");
         };
 
@@ -140,6 +273,7 @@
         }
         isRecording = false;
         btn.textContent = 'Hablar';
+        btn.classList.remove('recording');
       }
     };
   </script>
