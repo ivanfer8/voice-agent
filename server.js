@@ -32,7 +32,7 @@ const upload = multer({ dest: uploadsDir });
 app.use(express.static(path.join(__dirname, 'public')));
 
 // =============================
-// HTTP: endpoint /stt (voz -> texto -> respuesta IA)
+// HTTP: endpoint /stt (voz -> texto -> respuesta IA -> audio)
 // =============================
 app.post('/stt', upload.single('audio'), async (req, res) => {
   try {
@@ -40,9 +40,8 @@ app.post('/stt', upload.single('audio'), async (req, res) => {
       return res.status(400).json({ error: 'No se ha recibido ningún archivo de audio' });
     }
 
-    const filePath = req.file.path; // sin extensión
-    const newPath = filePath + '.webm'; // le añadimos .webm para que Whisper entienda el formato
-
+    const filePath = req.file.path;        // sin extensión
+    const newPath = filePath + '.webm';    // añadimos .webm para Whisper
     fs.renameSync(filePath, newPath);
 
     // 1) Transcribir audio con Whisper
@@ -55,11 +54,11 @@ app.post('/stt', upload.single('audio'), async (req, res) => {
     const textoUsuario = transcription.text || '';
     console.log('Transcripción:', textoUsuario);
 
-    // 2) Obtener respuesta de la IA en base a lo que has dicho
+    // 2) Obtener respuesta de la IA (texto)
     const respuesta = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: 'Eres un asistente amable y conciso.' },
+        { role: 'system', content: 'Eres un asistente amable, conciso y hablas en español.' },
         { role: 'user', content: textoUsuario }
       ]
     });
@@ -68,13 +67,25 @@ app.post('/stt', upload.single('audio'), async (req, res) => {
       respuesta.choices?.[0]?.message?.content ||
       'No he recibido contenido de la IA.';
 
+    // 3) Convertir la respuesta a audio (TTS)
+    // gpt-4o-mini-tts devuelve un buffer de audio (mp3)
+    const speech = await openai.audio.speech.create({
+      model: 'gpt-4o-mini-tts',
+      voice: 'alloy',        // puedes cambiar la voz si quieres
+      input: contenido
+    });
+
+    // speech es un Buffer/Uint8Array -> lo pasamos a base64 para enviarlo por JSON
+    const audioBase64 = Buffer.from(speech).toString('base64');
+
     // Borramos el archivo temporal renombrado
     fs.unlink(newPath, () => {});
 
     // Devolvemos JSON al navegador
     res.json({
       transcript: textoUsuario,
-      answer: contenido
+      answer: contenido,
+      audio: audioBase64    // mp3 en base64
     });
   } catch (err) {
     console.error('Error en /stt:', err);

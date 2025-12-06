@@ -9,131 +9,139 @@
   <button id="btnToggle">Hablar</button>
   <pre id="log"></pre>
 
-<script>
-  const btn = document.getElementById('btnToggle');
-  const log = document.getElementById('log');
+  <script>
+    const btn = document.getElementById('btnToggle');
+    const log = document.getElementById('log');
 
-  let mediaRecorder;
-  let socket;
-  let isRecording = false;
-  let audioChunks = [];
+    let mediaRecorder;
+    let socket;
+    let isRecording = false;
+    let audioChunks = [];
 
-  function addLog(msg) {
-    log.textContent += msg + "\n";
-    console.log(msg);
-  }
-
-  async function startRecording() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      addLog("ERROR: getUserMedia NO disponible (necesitas HTTPS o localhost).");
-      return;
+    function addLog(msg) {
+      log.textContent += msg + "\n";
+      console.log(msg);
     }
 
-    try {
-      addLog("Pidiendo permiso de micrófono...");
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      addLog("Permiso de micrófono CONCEDIDO.");
+    async function startRecording() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        addLog("ERROR: getUserMedia NO disponible (necesitas HTTPS o localhost).");
+        return;
+      }
 
-      audioChunks = [];
-      mediaRecorder = new MediaRecorder(stream);
+      try {
+        addLog("Pidiendo permiso de micrófono...");
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        addLog("Permiso de micrófono CONCEDIDO.");
 
-      mediaRecorder.onstart = () => {
-        addLog("MediaRecorder iniciado");
-      };
+        audioChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
 
-      mediaRecorder.ondataavailable = (e) => {
-        addLog("Chunk de audio generado, tamaño: " + e.data.size);
-        audioChunks.push(e.data); // guardamos el chunk para luego
+        mediaRecorder.onstart = () => {
+          addLog("MediaRecorder iniciado");
+        };
 
-        if (e.data.size > 0 && socket && socket.readyState === WebSocket.OPEN) {
-          e.data.arrayBuffer().then(buf => {
-            addLog("Enviando chunk de audio al servidor (" + buf.byteLength + " bytes)");
-            socket.send(buf);  // seguimos enviando al WS para debug
-          });
-        }
-      };
+        mediaRecorder.ondataavailable = (e) => {
+          addLog("Chunk de audio generado, tamaño: " + e.data.size);
+          audioChunks.push(e.data); // guardamos el chunk para STT+TTS
 
-      mediaRecorder.onstop = async () => {
-        addLog("MediaRecorder parado");
-
-        // Cuando paramos, juntamos todos los chunks y los mandamos a /stt
-        if (audioChunks.length > 0) {
-          const blob = new Blob(audioChunks, { type: 'audio/webm' });
-          addLog("Audio total preparado para STT, tamaño: " + blob.size);
-
-          const formData = new FormData();
-          formData.append('audio', blob, 'grabacion.webm');
-
-          try {
-            addLog("Enviando audio a /stt...");
-            const resp = await fetch('/stt', {
-              method: 'POST',
-              body: formData
+          // Seguimos enviando al WS para debug
+          if (e.data.size > 0 && socket && socket.readyState === WebSocket.OPEN) {
+            e.data.arrayBuffer().then(buf => {
+              addLog("Enviando chunk de audio al servidor (" + buf.byteLength + " bytes)");
+              socket.send(buf);
             });
-
-            if (!resp.ok) {
-              const errText = await resp.text();
-              addLog("Error STT HTTP: " + resp.status + " - " + errText);
-              return;
-            }
-
-            const data = await resp.json();
-            addLog("Transcripción: " + data.transcript);
-            addLog("Respuesta IA (texto): " + data.answer);
-          } catch (err) {
-            addLog("Error llamando a /stt: " + err.message);
           }
+        };
+
+        mediaRecorder.onstop = async () => {
+          addLog("MediaRecorder parado");
+
+          if (audioChunks.length > 0) {
+            const blob = new Blob(audioChunks, { type: 'audio/webm' });
+            addLog("Audio total preparado para STT, tamaño: " + blob.size);
+
+            const formData = new FormData();
+            formData.append('audio', blob, 'grabacion.webm');
+
+            try {
+              addLog("Enviando audio a /stt...");
+              const resp = await fetch('/stt', {
+                method: 'POST',
+                body: formData
+              });
+
+              if (!resp.ok) {
+                const errText = await resp.text();
+                addLog("Error STT HTTP: " + resp.status + " - " + errText);
+                return;
+              }
+
+              const data = await resp.json();
+              addLog("Transcripción: " + data.transcript);
+              addLog("Respuesta IA (texto): " + data.answer);
+
+              // Si viene audio en base64, lo reproducimos
+              if (data.audio) {
+                try {
+                  addLog("Reproduciendo audio de respuesta...");
+                  const audioBytes = Uint8Array.from(atob(data.audio), c => c.charCodeAt(0));
+                  const audioBlob = new Blob([audioBytes], { type: 'audio/mpeg' });
+                  const url = URL.createObjectURL(audioBlob);
+                  const audio = new Audio(url);
+                  audio.play();
+                } catch (e) {
+                  addLog("Error reproduciendo audio: " + e.message);
+                }
+              }
+            } catch (err) {
+              addLog("Error llamando a /stt: " + err.message);
+            }
+          }
+        };
+
+        mediaRecorder.start(500); // trozos cada 500ms
+        isRecording = true;
+        btn.textContent = 'Parar';
+      } catch (err) {
+        addLog("ERROR al pedir el micrófono: " + err.name + " - " + err.message);
+      }
+    }
+
+    btn.onclick = async () => {
+      if (!isRecording) {
+        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+        const wsUrl = `${protocol}://${location.host}`;
+        addLog("Conectando WebSocket a: " + wsUrl);
+
+        socket = new WebSocket(wsUrl);
+        socket.binaryType = "arraybuffer";
+
+        socket.onopen = () => {
+          addLog("WS conectado");
+          // Mensaje de prueba para ver IA por WS
+          socket.send("TEST DESDE EL NAVEGADOR");
+        };
+
+        socket.onmessage = (event) => {
+          addLog("Respuesta servidor: " + event.data);
+        };
+
+        socket.onclose = () => addLog("WS cerrado");
+        socket.onerror = () => addLog("WS error");
+
+        await startRecording();
+      } else {
+        if (mediaRecorder && mediaRecorder.state !== "inactive") {
+          mediaRecorder.stop();
         }
-      };
-
-      mediaRecorder.start(500); // trozos cada 500ms
-      isRecording = true;
-      btn.textContent = 'Parar';
-    } catch (err) {
-      addLog("ERROR al pedir el micrófono: " + err.name + " - " + err.message);
-    }
-  }
-
-  btn.onclick = async () => {
-    if (!isRecording) {
-      // Conectar WebSocket como antes (para seguir viendo los OK de audio)
-      const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-      const wsUrl = `${protocol}://${location.host}`;
-      addLog("Conectando WebSocket a: " + wsUrl);
-
-      socket = new WebSocket(wsUrl);
-      socket.binaryType = "arraybuffer";
-
-      socket.onopen = () => {
-        addLog("WS conectado");
-        // Mensaje de prueba para ver OpenAI por WS
-        socket.send("TEST DESDE EL NAVEGADOR");
-      };
-
-      socket.onmessage = (event) => {
-        addLog("Respuesta servidor: " + event.data);
-      };
-
-      socket.onclose = () => addLog("WS cerrado");
-      socket.onerror = () => addLog("WS error");
-
-      // Cuando el WS esté en marcha, empezamos a grabar
-      await startRecording();
-    } else {
-      if (mediaRecorder && mediaRecorder.state !== "inactive") {
-        mediaRecorder.stop();
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.close();
+        }
+        isRecording = false;
+        btn.textContent = 'Hablar';
       }
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.close();
-      }
-      isRecording = false;
-      btn.textContent = 'Hablar';
-    }
-  };
-</script>
-
-
-
-
+    };
+  </script>
 </body>
 </html>
