@@ -68,15 +68,15 @@ app.post('/stt', upload.single('audio'), async (req, res) => {
       'No he recibido contenido de la IA.';
 
     // 3) Convertir la respuesta a audio (TTS)
-    // gpt-4o-mini-tts devuelve un buffer de audio (mp3)
     const speech = await openai.audio.speech.create({
       model: 'gpt-4o-mini-tts',
-      voice: 'alloy',        // puedes cambiar la voz si quieres
+      voice: 'alloy',
       input: contenido
     });
 
-    // speech es un Buffer/Uint8Array -> lo pasamos a base64 para enviarlo por JSON
-    const audioBase64 = Buffer.from(speech).toString('base64');
+    // IMPORTANTE: speech es un Response-like -> hay que pasar por arrayBuffer()
+    const audioBuffer = Buffer.from(await speech.arrayBuffer());
+    const audioBase64 = audioBuffer.toString('base64');
 
     // Borramos el archivo temporal renombrado
     fs.unlink(newPath, () => {});
