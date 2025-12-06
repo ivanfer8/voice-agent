@@ -10,52 +10,73 @@
   <pre id="log"></pre>
 
   <script>
-    const btn = document.getElementById('btnToggle');
-    const log = document.getElementById('log');
+  const btn = document.getElementById('btnToggle');
+  const log = document.getElementById('log');
 
-    let mediaRecorder;
-    let socket;
-    let isRecording = false;
+  let mediaRecorder;
+  let socket;
+  let isRecording = false;
 
-    function addLog(msg) {
-      log.textContent += msg + "\n";
+  function addLog(msg) {
+    log.textContent += msg + "\n";
+  }
+
+  btn.onclick = async () => {
+    if (!isRecording) {
+      // Abrir WebSocket al mismo host
+      const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+      socket = new WebSocket(`${protocol}://${location.host}`);
+      socket.binaryType = "arraybuffer";
+
+      socket.onopen = () => {
+        addLog("WS conectado");
+
+        // 🔹 MENSAJE DE PRUEBA DE TEXTO
+        socket.send("TEST DESDE EL NAVEGADOR");
+      };
+
+      socket.onmessage = (event) => {
+        addLog("Respuesta servidor: " + event.data);
+      };
+
+      socket.onclose = () => addLog("WS cerrado");
+      socket.onerror = (e) => addLog("WS error: " + e.message);
+
+      // Pedir micro
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      // Importante: dejamos que el navegador elija el formato
+      mediaRecorder = new MediaRecorder(stream);
+
+      mediaRecorder.onstart = () => {
+        addLog("MediaRecorder iniciado");
+      };
+
+      mediaRecorder.ondataavailable = (e) => {
+        addLog("Chunk de audio generado, tamaño: " + e.data.size);
+
+        if (e.data.size > 0 && socket.readyState === WebSocket.OPEN) {
+          e.data.arrayBuffer().then(buf => {
+            socket.send(buf);  // 🔹 Enviamos audio al servidor
+          });
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        addLog("MediaRecorder parado");
+      };
+
+      mediaRecorder.start(500); // trozos cada 500ms
+      isRecording = true;
+      btn.textContent = 'Parar';
+    } else {
+      mediaRecorder.stop();
+      socket.close();
+      isRecording = false;
+      btn.textContent = 'Hablar';
     }
+  };
+</script>
 
-    btn.onclick = async () => {
-      if (!isRecording) {
-        // Abrir WebSocket al mismo host
-        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-        socket = new WebSocket(`${protocol}://${location.host}`);
-        socket.binaryType = "arraybuffer";
-
-        socket.onopen = () => addLog("WS conectado");
-        socket.onmessage = (event) => {
-          addLog("Respuesta servidor: " + event.data);
-        };
-        socket.onclose = () => addLog("WS cerrado");
-
-        // Pedir micro
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-
-        mediaRecorder.ondataavailable = (e) => {
-          if (e.data.size > 0 && socket.readyState === WebSocket.OPEN) {
-            e.data.arrayBuffer().then(buf => {
-              socket.send(buf);
-            });
-          }
-        };
-
-        mediaRecorder.start(500); // envía trozos cada 500ms
-        isRecording = true;
-        btn.textContent = 'Parar';
-      } else {
-        mediaRecorder.stop();
-        socket.close();
-        isRecording = false;
-        btn.textContent = 'Hablar';
-      }
-    };
-  </script>
 </body>
 </html>

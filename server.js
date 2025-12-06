@@ -13,17 +13,25 @@ app.use(express.static(path.join(__dirname, 'public')));
 wss.on('connection', (ws) => {
   console.log('Cliente conectado');
 
-  ws.on('message', (message) => {
-    console.log('Audio chunk recibido, tamaño:', message.byteLength);
+  ws.on('message', (message, isBinary) => {
+    // Diferenciamos si llega texto (string) o audio (binario)
+    if (!isBinary) {
+      const text = message.toString();
+      console.log('Texto recibido:', text);
+      ws.send('Recibido texto: ' + text);
+      return;
+    }
 
-    // De momento solo respondemos texto para probar
-    ws.send('OK: he recibido audio (' + message.byteLength + ' bytes)');
+    const buf = Buffer.from(message);
+    console.log('Audio chunk recibido, tamaño:', buf.length);
+    ws.send('OK: he recibido audio (' + buf.length + ' bytes)');
   });
 
   ws.on('close', () => {
     console.log('Cliente desconectado');
   });
 });
+
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
