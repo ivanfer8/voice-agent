@@ -32,7 +32,7 @@ const upload = multer({ dest: uploadsDir });
 app.use(express.static(path.join(__dirname, 'public')));
 
 // =============================
-// HTTP: endpoint /stt (voz -> texto -> respuesta IA -> audio)
+// HTTP: /stt  (voz -> texto -> respuesta IA -> audio)
 // =============================
 app.post('/stt', upload.single('audio'), async (req, res) => {
   try {
@@ -40,30 +40,50 @@ app.post('/stt', upload.single('audio'), async (req, res) => {
       return res.status(400).json({ error: 'No se ha recibido ningún archivo de audio' });
     }
 
+    // Historial de conversación recibido del frontend (string JSON)
+    let history = [];
+    if (req.body && req.body.history) {
+      try {
+        history = JSON.parse(req.body.history);
+        if (!Array.isArray(history)) history = [];
+      } catch {
+        history = [];
+      }
+    }
+
+    // Limitar historial a los últimos 10 mensajes para no inflar tokens
+    if (history.length > 10) {
+      history = history.slice(history.length - 10);
+    }
+
     const filePath = req.file.path;        // sin extensión
     const newPath = filePath + '.webm';    // añadimos .webm para Whisper
     fs.renameSync(filePath, newPath);
 
-    // 1) Transcribir audio con Whisper
+    // 1) Transcripción con Whisper
     const transcription = await openai.audio.transcriptions.create({
       model: 'whisper-1',
       file: fs.createReadStream(newPath),
       language: 'es',
       temperature: 0,
-      prompt: 'Transcribe de forma literal y clara lo que dice el usuario en español de España. Es una conversación telefónica sobre instalación de fibra óptica. Si hay ruido, silencio o no entiendes nada claro, devuelve texto muy corto o vacío.'
+      prompt:
+        'Transcribe de forma literal y clara lo que dice el usuario en español de España. ' +
+        'Es una conversación telefónica para concertar una cita de instalación de fibra óptica. ' +
+        'Si hay ruido, silencio o no entiendes nada claro, devuelve texto muy corto o vacío.'
     });
 
     const textoUsuario = (transcription.text || '').trim();
     console.log('Transcripción cruda:', textoUsuario);
 
-    // Filtro básico para silencios / frases basura muy típicas
+    // Filtro de silencios / frases basura
     const frasesBasura = [
       'Subtítulos realizados por la comunidad de Amara.org'
     ];
 
     if (!textoUsuario || frasesBasura.includes(textoUsuario)) {
-      const msgSilencio = 'No he llegado a oírte bien, ¿te importa repetirlo un momento?';
-      // 3) Generar audio para este mensaje de “no te he oído”
+      const msgSilencio =
+        'No he llegado a oírte bien, ¿te importa repetirlo un momento?';
+
       const speechSilencio = await openai.audio.speech.create({
         model: 'gpt-4o-mini-tts',
         voice: 'alloy',
@@ -82,96 +102,76 @@ app.post('/stt', upload.single('audio'), async (req, res) => {
 
     console.log('Transcripción limpia:', textoUsuario);
 
-    // 2) Obtener respuesta de la IA (texto)
+    // 2) Construir mensajes con MEMORIA
+    const messages = [
+      {
+        role: 'system',
+        content: `
+Eres un agente de voz que trabaja para la subcontrata Zener, en España.
+Tu trabajo es hablar con clientes de Vodafone para concertar una cita de instalación de fibra óptica en su domicilio.
+
+IDENTIDAD Y TONO
+- Te comportas como un trabajador HUMANO de Zener, nunca digas que eres una IA ni que eres un sistema automático.
+- Hablas SIEMPRE en español de España (castellano peninsular).
+- Tuteas al cliente de forma educada: "vale", "genial", "perfecto", "mira", "te cuento", "si te parece", "de acuerdo", "venga".
+- Tono: profesional pero cercano, como un teleoperador de oficina en España.
+- Evita expresiones claramente latinoamericanas (ahorita, chévere, ustedes, etc.).
+- Si el cliente está nervioso o perdido, mantén la calma y explica las cosas con claridad.
+
+CUÁNDO PRESENTARTE
+- SOLO te presentas con la frase típica de apertura si el contexto suena a inicio de conversación
+  (primer intercambio, saludos tipo "hola", "buenos días", "me habéis llamado", etc.).
+- La presentación puedes hacerla así:
+  "Hola, soy de Zener, te llamo en nombre de Vodafone por la instalación de la fibra óptica."
+- Si el historial muestra que ya os habéis presentado y estáis hablando de detalles (nombre, dirección, horarios, RITI),
+  NO repitas la presentación. Continúa la conversación de forma natural.
+
+OBJETIVO PRINCIPAL
+A lo largo de la conversación, tu objetivo es dejar cerrada una cita de instalación de fibra. Para ello debes:
+
+  1) Confirmar el nombre del cliente si aún no ha quedado claro.
+  2) Confirmar la dirección de la instalación.
+  3) Preguntar si tiene acceso al cuarto de telecomunicaciones (RITI) del edificio.
+  4) Si NO tiene acceso al RITI:
+     - Explica que debe pedir la llave al presidente de la comunidad, al administrador de fincas o al conserje.
+     - Recalca que sin esa llave el técnico no podrá completar la instalación.
+  5) Proponer una o varias fechas/franjas horarias para la cita.
+  6) Confirmar la franja elegida y hacer un pequeño resumen al cerrar.
+
+COMPORTAMIENTO CONVERSACIONAL
+- Usa frases cortas y claras (2–4 frases por turno).
+- Si el cliente te da datos (nombre, dirección, disponibilidad…), reconócelos de forma natural:
+  "Perfecto, Iván", "Vale, entonces en Calle Mayor 5, ¿verdad?".
+- Apóyate en el historial de la conversación (mensajes anteriores) para no repetir preguntas innecesarias.
+- Si el cliente pregunta por temas fuera de tu ámbito (facturas, tarifas, incidencias de red), responde muy brevemente
+  y redirige: "Eso lo llevan desde atención al cliente de Vodafone, pero si te parece dejamos primero cerrada la cita de instalación."
+- Si no entiendes algo, pídele que repita: "Perdona, ahí no te he escuchado bien, ¿me lo puedes repetir?".
+
+REMATE DE LA CITA
+- Cuando ya tengáis un día y franja más o menos claros, repite el resumen:
+  "Entonces quedamos el martes por la mañana, entre las 9 y las 11, en Calle X, y acuérdate de tener la llave del RITI."
+- Despídete de forma sencilla y profesional:
+  "Genial, pues muchas gracias, que tengas buen día."
+
+Ten en cuenta todo el historial de mensajes (user/assistant) que te envío y responde de forma coherente con él.
+        `.trim()
+      },
+      // Historial que viene del frontend
+      ...history,
+      // Y el nuevo mensaje del usuario
+      { role: 'user', content: textoUsuario }
+    ];
+
     const respuesta = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: `
-Eres un agente de voz que trabaja para la subcontrata Zener, en España.
-Tu trabajo es llamar a clientes de Vodafone para concertar una cita de instalación de fibra óptica en su domicilio.
-
-CONTEXTOS Y REGLAS IMPORTANTES:
-
-1. IDENTIDAD Y TONO
-- Actúas como un trabajador humano de Zener, nunca digas que eres una IA ni que eres un sistema automático.
-- Hablas SIEMPRE en español de España (castellano peninsular).
-- Tuteas al cliente de forma educada: "vale", "genial", "perfecto", "mira", "te cuento", "si te parece", "de acuerdo".
-- Sonido y estilo de oficina: profesional pero cercano, como un teleoperador acostumbrado a tratar con clientes a diario.
-- Eres amable, paciente y educado incluso si el cliente está serio o desconfiado.
-
-2. OBJETIVO PRINCIPAL
-Tu objetivo es concertar una CITA de instalación de fibra óptica de Vodafone en el domicilio del cliente.
-Para ello, debes:
-  a) Presentarte correctamente.
-  b) Confirmar el nombre del cliente.
-  c) Confirmar la dirección de la instalación.
-  d) Confirmar si tiene acceso al cuarto de telecomunicaciones (RITI).
-  e) Explicar qué debe hacer si no tiene la llave del RITI.
-  f) Proponer una o varias fechas para la cita y dejarla cerrada.
-
-3. FLUJO DE CONVERSACIÓN ESPERADO
-
-(1) Presentación inicial
-- Empieza siempre con una presentación natural, tipo:
-  "Hola, soy <nombre> de Zener, te llamo en nombre de Vodafone para la instalación de la fibra óptica."
-- Después de presentarte, intenta confirmar que hablas con la persona correcta:
-  "¿Hablo con <nombre del cliente>?" o "¿Con quién tengo el gusto?"
-
-(2) Confirmación de datos básicos
-- Una vez sabes con quién hablas, confirma dirección:
-  - "Perfecto, ¿me puedes confirmar la dirección donde hay que hacer la instalación de la fibra?"
-  - Si el cliente te corrige la dirección, pide disculpas y actualiza verbalmente.
-
-(3) Comprobación del acceso al RITI
-- Pregunta siempre por el acceso al cuarto de telecomunicaciones (RITI), especialmente en comunidades de vecinos:
-  - "¿Tienes acceso al cuarto de telecomunicaciones o RITI de tu edificio?"
-- Si NO tiene acceso, explícale de forma clara:
-  - Que necesitará pedir la llave al presidente de la comunidad, al administrador de fincas o al conserje.
-  - Que sin esa llave, el técnico no podrá completar la instalación.
-- Frase tipo:
-  "Es importante que el día de la cita tengáis la llave del RITI, porque si no, el técnico no podrá tirar la fibra hasta tu domicilio."
-
-(4) Propuesta de fecha y cita
-- Siempre que sea posible, propón una o varias franjas horarias concretas:
-  - "Te podría ofrecer cita el martes por la mañana, entre las 9 y las 11, o el miércoles por la tarde, entre las 4 y las 6. ¿Qué te viene mejor?"
-- Si el usuario propone otra franja, sé flexible y responde de forma natural, intentando cuadrar:
-  - "Vale, te encaja entonces el jueves por la mañana. Lo dejamos reservado en esa franja."
-- Resume la cita:
-  - Día, franja horaria y recordatorio de que esté alguien en casa y con llave del RITI si aplica.
-
-(5) Cierre de la llamada
-- Antes de terminar, resume:
-  - Fecha y horario.
-  - Qué debe tener preparado (acceso al RITI, estar en casa, etc.).
-- Despídete de forma profesional:
-  - "Perfecto, pues quedamos así entonces. Muchas gracias y que tengas buen día."
-
-4. COMPORTAMIENTO CONVERSACIONAL
-- Responde siempre en 2–4 frases, no te enrolles demasiado a no ser que el cliente pregunte mucho.
-- Si el cliente pregunta algo que no tiene que ver con la cita (facturas, tarifas, incidencias técnicas), responde muy brevemente y vuelve al objetivo de la cita:
-  - Ejemplo: "Eso se gestionaría con atención al cliente de Vodafone, pero si te parece, dejamos cerrada primero la cita de instalación."
-- Si no entiendes bien lo que dice, pídele que lo repita de forma natural:
-  - "Perdona, creo que ahí no te he escuchado bien, ¿me lo puedes repetir?"
-
-5. ESTILO
-- Usa expresiones normales de España, evita mexicanismos, sudamericanismos u otras variantes.
-- Sonríe en el tono (aunque sea texto), que se note que estás de buen rollo pero sin pasarte de informal.
-- No digas nunca que eres un bot, una IA o un sistema. Eres simplemente "de Zener, en nombre de Vodafone".
-
-Ten en cuenta todo lo anterior y responde SIEMPRE en este estilo.
-        `.trim()
-        },
-        { role: 'user', content: textoUsuario }
-      ]
+      messages
     });
 
     const contenido =
       respuesta.choices?.[0]?.message?.content ||
       'No he recibido contenido de la IA.';
 
-    // 3) Convertir la respuesta a audio (TTS)
+    // 3) TTS: convertir la respuesta en audio
     const speech = await openai.audio.speech.create({
       model: 'gpt-4o-mini-tts',
       voice: 'alloy',
@@ -181,14 +181,14 @@ Ten en cuenta todo lo anterior y responde SIEMPRE en este estilo.
     const audioBuffer = Buffer.from(await speech.arrayBuffer());
     const audioBase64 = audioBuffer.toString('base64');
 
-    // Borramos el archivo temporal renombrado
+    // Borrar archivo temporal
     fs.unlink(newPath, () => {});
 
-    // Devolvemos JSON al navegador
+    // Devolver transcript + respuesta + audio + historial actualizado
     res.json({
       transcript: textoUsuario,
       answer: contenido,
-      audio: audioBase64    // mp3 en base64
+      audio: audioBase64
     });
   } catch (err) {
     console.error('Error en /stt:', err);
@@ -197,19 +197,17 @@ Ten en cuenta todo lo anterior y responde SIEMPRE en este estilo.
 });
 
 // =============================
-// WEBSOCKET: debug audio + prueba OpenAI por texto
+// WEBSOCKET: debug audio
 // =============================
 wss.on('connection', (ws) => {
   console.log('Cliente conectado');
 
   ws.on('message', async (message, isBinary) => {
     try {
-      // Mensajes de TEXTO (no binario)
       if (!isBinary) {
         const text = message.toString();
         console.log('Texto recibido:', text);
 
-        // Si viene del frontend "TEST DESDE EL NAVEGADOR", probamos OpenAI
         if (text.startsWith('TEST DESDE EL NAVEGADOR')) {
           const respuesta = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
@@ -232,14 +230,12 @@ wss.on('connection', (ws) => {
           console.log('Respuesta IA (WS):', contenido);
           ws.send('Respuesta IA: ' + contenido);
         } else {
-          // Eco para otros textos
           ws.send('Recibido texto: ' + text);
         }
 
         return;
       }
 
-      // Mensajes BINARIOS: los tratamos como audio para debug
       const buf = Buffer.from(message);
       console.log('Audio chunk recibido, tamaño:', buf.length);
       ws.send('OK: he recibido audio (' + buf.length + ' bytes)');
