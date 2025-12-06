@@ -9,13 +9,14 @@
   <button id="btnToggle">Hablar</button>
   <pre id="log"></pre>
 
-  <script>
+<script>
   const btn = document.getElementById('btnToggle');
   const log = document.getElementById('log');
 
   let mediaRecorder;
   let socket;
   let isRecording = false;
+  let audioChunks = [];
 
   function addLog(msg) {
     log.textContent += msg + "\n";
@@ -23,15 +24,8 @@
   }
 
   async function startRecording() {
-    // Comprobamos soporte de APIs
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      addLog("ERROR: navigator.mediaDevices.getUserMedia NO disponible.");
-      addLog("Probablemente estás en HTTP (no HTTPS) o el navegador no permite el micro en este contexto.");
-      return;
-    }
-
-    if (typeof MediaRecorder === "undefined") {
-      addLog("ERROR: MediaRecorder NO está soportado en este navegador.");
+      addLog("ERROR: getUserMedia NO disponible (necesitas HTTPS o localhost).");
       return;
     }
 
@@ -40,6 +34,7 @@
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       addLog("Permiso de micrófono CONCEDIDO.");
 
+      audioChunks = [];
       mediaRecorder = new MediaRecorder(stream);
 
       mediaRecorder.onstart = () => {
@@ -48,21 +43,47 @@
 
       mediaRecorder.ondataavailable = (e) => {
         addLog("Chunk de audio generado, tamaño: " + e.data.size);
+        audioChunks.push(e.data); // guardamos el chunk para luego
 
         if (e.data.size > 0 && socket && socket.readyState === WebSocket.OPEN) {
           e.data.arrayBuffer().then(buf => {
             addLog("Enviando chunk de audio al servidor (" + buf.byteLength + " bytes)");
-            socket.send(buf);
+            socket.send(buf);  // seguimos enviando al WS para debug
           });
         }
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         addLog("MediaRecorder parado");
-      };
 
-      mediaRecorder.onerror = (e) => {
-        addLog("MediaRecorder ERROR: " + e.error);
+        // Cuando paramos, juntamos todos los chunks y los mandamos a /stt
+        if (audioChunks.length > 0) {
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          addLog("Audio total preparado para STT, tamaño: " + blob.size);
+
+          const formData = new FormData();
+          formData.append('audio', blob, 'grabacion.webm');
+
+          try {
+            addLog("Enviando audio a /stt...");
+            const resp = await fetch('/stt', {
+              method: 'POST',
+              body: formData
+            });
+
+            if (!resp.ok) {
+              const errText = await resp.text();
+              addLog("Error STT HTTP: " + resp.status + " - " + errText);
+              return;
+            }
+
+            const data = await resp.json();
+            addLog("Transcripción: " + data.transcript);
+            addLog("Respuesta IA (texto): " + data.answer);
+          } catch (err) {
+            addLog("Error llamando a /stt: " + err.message);
+          }
+        }
       };
 
       mediaRecorder.start(500); // trozos cada 500ms
@@ -75,6 +96,7 @@
 
   btn.onclick = async () => {
     if (!isRecording) {
+      // Conectar WebSocket como antes (para seguir viendo los OK de audio)
       const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
       const wsUrl = `${protocol}://${location.host}`;
       addLog("Conectando WebSocket a: " + wsUrl);
@@ -84,10 +106,8 @@
 
       socket.onopen = () => {
         addLog("WS conectado");
-        // Enviamos un mensaje de texto de prueba
+        // Mensaje de prueba para ver OpenAI por WS
         socket.send("TEST DESDE EL NAVEGADOR");
-        // Una vez abierto el socket, empezamos a grabar
-        startRecording();
       };
 
       socket.onmessage = (event) => {
@@ -95,7 +115,10 @@
       };
 
       socket.onclose = () => addLog("WS cerrado");
-      socket.onerror = (e) => addLog("WS error");
+      socket.onerror = () => addLog("WS error");
+
+      // Cuando el WS esté en marcha, empezamos a grabar
+      await startRecording();
     } else {
       if (mediaRecorder && mediaRecorder.state !== "inactive") {
         mediaRecorder.stop();
@@ -108,6 +131,7 @@
     }
   };
 </script>
+
 
 
 

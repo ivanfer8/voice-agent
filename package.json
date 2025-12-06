@@ -12,6 +12,7 @@
   "type": "commonjs",
   "dependencies": {
     "express": "^5.2.1",
+    "multer": "^2.0.2",
     "openai": "^6.10.0",
     "ws": "^8.18.3"
   }
