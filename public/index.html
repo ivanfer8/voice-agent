@@ -2,156 +2,308 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Agente de voz Zener / Vodafone</title>
+  <title>ZIM - Agendamiento de Instalaciones</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    :root {
-      color-scheme: dark;
-    }
-    * {
-      box-sizing: border-box;
-    }
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+
     body {
       margin: 0;
+      min-height: 100vh;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
         sans-serif;
       background: radial-gradient(circle at top, #1f2937 0, #020617 55%);
       color: #e5e7eb;
-      min-height: 100vh;
       display: flex;
       justify-content: center;
       align-items: stretch;
     }
+
     .app {
       width: 100%;
-      max-width: 1100px;
-      padding: 1.5rem;
+      max-width: 1180px;
+      padding: 1.5rem 1.25rem 2rem;
       display: flex;
       flex-direction: column;
-      gap: 1rem;
-    }
-    header h1 {
-      margin: 0;
-      font-size: 1.6rem;
-    }
-    header p {
-      margin: 0.25rem 0 0;
-      color: #9ca3af;
-      font-size: 0.9rem;
-    }
-    .top-row {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-    }
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.9rem;
-    }
-    .controls label {
-      color: #9ca3af;
-    }
-    .controls select {
-      background: #020617;
-      color: #e5e7eb;
-      border-radius: 0.5rem;
-      border: 1px solid #4b5563;
-      padding: 0.25rem 0.5rem;
-    }
-    #btnToggle {
-      border: none;
-      border-radius: 999px;
-      padding: 0.5rem 1.4rem;
-      font-size: 1rem;
-      cursor: pointer;
-      background: linear-gradient(135deg, #22c55e, #16a34a);
-      color: #0b1120;
-      font-weight: 600;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      box-shadow: 0 10px 25px rgba(34, 197, 94, 0.35);
-      transition: transform 0.08s ease-out, box-shadow 0.08s ease-out,
-        background 0.15s ease-out;
-    }
-    #btnToggle:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 14px 35px rgba(34, 197, 94, 0.45);
-    }
-    #btnToggle.recording {
-      background: linear-gradient(135deg, #ef4444, #b91c1c);
-      box-shadow: 0 10px 25px rgba(239, 68, 68, 0.5);
-      color: #fee2e2;
-    }
-    #btnToggle span.dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: #22c55e;
-    }
-    #btnToggle.recording span.dot {
-      background: #fecaca;
+      gap: 1.25rem;
     }
 
-    .main-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr);
+    /* Top bar */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       gap: 1rem;
     }
-    @media (max-width: 900px) {
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .brand img {
+      height: 48px;
+      width: auto;
+    }
+    .brand-title {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+    .brand-title h1 {
+      margin: 0;
+      font-size: 1.4rem;
+      letter-spacing: 0.02em;
+    }
+    .brand-title span {
+      font-size: 0.78rem;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+    .topbar-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.2rem;
+      font-size: 0.82rem;
+      color: #9ca3af;
+    }
+
+    /* Layout principal */
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      gap: 1.25rem;
+    }
+    @media (max-width: 980px) {
       .main-grid {
         grid-template-columns: minmax(0, 1fr);
       }
     }
 
-    .panel {
-      background: rgba(15, 23, 42, 0.9);
-      border-radius: 1rem;
-      padding: 1rem;
-      border: 1px solid rgba(148, 163, 184, 0.25);
-      box-shadow: 0 15px 35px rgba(15, 23, 42, 0.7);
+    .card {
+      background: rgba(15, 23, 42, 0.96);
+      border-radius: 1.1rem;
+      padding: 1.1rem 1.1rem 1.2rem;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.85);
     }
-    .panel h2 {
-      margin: 0 0 0.75rem;
-      font-size: 1rem;
-      color: #e5e7eb;
+    .card h2 {
+      margin: 0 0 0.85rem;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: #9ca3af;
+    }
+
+    /* Panel de llamada (lado izquierdo) */
+    .call-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      gap: 0.75rem;
+    }
+    .agent-info {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.75rem;
     }
-    .badge {
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      padding: 0.1rem 0.4rem;
+    .agent-avatar {
+      width: 54px;
+      height: 54px;
       border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: radial-gradient(circle at 30% 20%, #facc15 0, #f97316 35%, #7c2d12 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: #0b1120;
+      box-shadow: 0 10px 25px rgba(251, 191, 36, 0.5);
+    }
+    .agent-text {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+    .agent-text span:first-child {
+      font-size: 0.85rem;
       color: #9ca3af;
+    }
+    .agent-text strong {
+      font-size: 1.05rem;
+    }
+
+    .call-status-pill {
+      padding: 0.2rem 0.7rem;
+      border-radius: 999px;
+      border: 1px solid rgba(52, 211, 153, 0.6);
+      font-size: 0.78rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: rgba(6, 78, 59, 0.2);
+      color: #6ee7b7;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 10px #22c55e;
+    }
+    .call-status-pill.idle {
+      border-color: rgba(148, 163, 184, 0.6);
+      background: rgba(15, 23, 42, 0.7);
+      color: #9ca3af;
+    }
+    .call-status-pill.idle .status-dot {
+      background: #9ca3af;
+      box-shadow: none;
+    }
+    .call-status-pill.ringing {
+      border-color: rgba(59, 130, 246, 0.75);
+      background: rgba(15, 23, 42, 0.8);
+      color: #93c5fd;
+    }
+    .call-status-pill.ringing .status-dot {
+      background: #3b82f6;
+      box-shadow: 0 0 10px #3b82f6;
+    }
+
+    .call-body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    /* Botón de llamada */
+    #btnToggle {
+      border: none;
+      border-radius: 999px;
+      padding: 0.75rem 2.2rem;
+      font-size: 1.05rem;
+      cursor: pointer;
+      background: radial-gradient(circle at top left, #22c55e 0, #16a34a 55%, #166534 100%);
+      color: #0b1120;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      box-shadow: 0 12px 30px rgba(34, 197, 94, 0.45);
+      transition: transform 0.08s ease-out, box-shadow 0.08s ease-out,
+        background 0.15s ease-out;
+    }
+    #btnToggle:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 38px rgba(34, 197, 94, 0.55);
+    }
+    #btnToggle.recording {
+      background: radial-gradient(circle at top left, #ef4444 0, #b91c1c 55%, #7f1d1d 100%);
+      box-shadow: 0 12px 30px rgba(239, 68, 68, 0.6);
+      color: #fee2e2;
+    }
+    #btnToggle span.icon {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      border: 2px solid currentColor;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+    }
+
+    /* Burbujas de texto */
+    .conversation {
+      width: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+    @media (max-width: 680px) {
+      .conversation {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+    .bubble-block-title {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      margin-bottom: 0.2rem;
     }
     .bubble {
       border-radius: 0.9rem;
       padding: 0.7rem 0.9rem;
-      background: rgba(15, 23, 42, 0.9);
-      border: 1px solid rgba(75, 85, 99, 0.7);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(75, 85, 99, 0.8);
       min-height: 2.3rem;
       font-size: 0.95rem;
       white-space: pre-wrap;
-      color: #d1d5db;
+      color: #e5e7eb;
     }
     .bubble.user {
-      border-color: rgba(96, 165, 250, 0.9);
-      background: rgba(15, 23, 42, 0.95);
+      border-color: rgba(96, 165, 250, 0.95);
+      background: rgba(15, 23, 42, 0.98);
     }
     .bubble.agent {
       border-color: rgba(52, 211, 153, 0.9);
-      background: rgba(6, 78, 59, 0.2);
+      background: rgba(6, 78, 59, 0.24);
     }
 
+    /* Panel lateral (config + logs) */
+    .config-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      margin-bottom: 0.9rem;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      font-size: 0.85rem;
+    }
+    .field label {
+      color: #9ca3af;
+    }
+    .field input,
+    .field select {
+      background: #020617;
+      color: #e5e7eb;
+      border-radius: 0.6rem;
+      border: 1px solid #4b5563;
+      padding: 0.45rem 0.55rem;
+      font-size: 0.9rem;
+    }
+    .hint {
+      font-size: 0.8rem;
+      color: #9ca3af;
+    }
+
+    /* Logs */
+    .logs-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.8rem;
+      color: #9ca3af;
+      cursor: pointer;
+      margin-top: 0.4rem;
+    }
+    .logs-toggle span.chevron {
+      transition: transform 0.15s ease-out;
+    }
+    .logs-toggle.open span.chevron {
+      transform: rotate(90deg);
+    }
+    #log-container {
+      margin-top: 0.45rem;
+      display: none;
+    }
     #log {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
         "Liberation Mono", "Courier New", monospace;
@@ -160,70 +312,112 @@
       border-radius: 0.6rem;
       padding: 0.7rem;
       border: 1px solid rgba(55, 65, 81, 0.9);
-      height: 260px;
+      height: 230px;
       overflow-y: auto;
       white-space: pre-wrap;
       color: #9ca3af;
     }
+
   </style>
 </head>
 <body>
   <div class="app">
-    <div class="top-row">
-      <header>
-        <h1>Agente de voz Zener / Vodafone</h1>
-        <p>
-          Pulsa <strong>Hablar</strong>, di algo (por ejemplo “hola, soy Iván
-          y quiero concertar la cita”) y luego pulsa <strong>Parar</strong>.
-        </p>
-      </header>
-
-      <div class="controls">
-        <label for="ttsProvider">Motor de voz:</label>
-        <select id="ttsProvider">
-          <option value="openai">OpenAI TTS</option>
-          <option value="elevenlabs">ElevenLabs TTS</option>
-        </select>
-        <button id="btnToggle">
-          <span class="dot"></span>
-          <span>Hablar</span>
-        </button>
+    <div class="topbar">
+      <div class="brand">
+        <img src="zim-logo.png" alt="ZIM" />
+        <div class="brand-title">
+          <span>Plataforma ZIM</span>
+          <h1>Agendamiento de Instalaciones</h1>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div id="topClientName">Cliente demo: (sin nombre)</div>
+        <div id="topTts">Motor de voz: OpenAI TTS</div>
       </div>
     </div>
 
     <div class="main-grid">
-      <section class="panel">
-        <h2>
-          Conversación
-          <span class="badge">Resumen en texto</span>
-        </h2>
+      <!-- Panel de llamada -->
+      <section class="card">
+        <h2>Llamada simulada</h2>
 
-        <div style="margin-bottom: 0.75rem;">
-          <div style="font-size: 0.8rem; color: #9ca3af; margin-bottom: 0.2rem;">
-            Tú dijiste:
+        <div class="call-header">
+          <div class="agent-info">
+            <div class="agent-avatar">Z</div>
+            <div class="agent-text">
+              <span>Agente comercial · Zener para Vodafone</span>
+              <strong>Agente virtual de agendamiento</strong>
+            </div>
           </div>
-          <div class="bubble user" id="userText">
-            (aún no has hablado)
+          <div id="callStatus" class="call-status-pill idle">
+            <span class="status-dot"></span>
+            <span id="callStatusText">Listo para llamar</span>
           </div>
         </div>
 
-        <div>
-          <div style="font-size: 0.8rem; color: #9ca3af; margin-bottom: 0.2rem;">
-            El agente responde:
-          </div>
-          <div class="bubble agent" id="agentText">
-            Aquí aparecerán las respuestas del agente de Zener en nombre de
-            Vodafone.
+        <div class="call-body">
+          <button id="btnToggle">
+            <span class="icon">📞</span>
+            <span>Iniciar llamada</span>
+          </button>
+
+          <div class="conversation">
+            <div>
+              <div class="bubble-block-title">Tú dijiste</div>
+              <div class="bubble user" id="userText">
+                Pulsa “Iniciar llamada”, espera a los tonos de establecimiento y habla como si fueses el cliente.
+              </div>
+            </div>
+            <div>
+              <div class="bubble-block-title">El agente responde</div>
+              <div class="bubble agent" id="agentText">
+                Aquí aparecerán las respuestas del agente de Zener en nombre de Vodafone durante la llamada.
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <section class="panel">
-        <h2>
-          Log técnico
-          <span class="badge">Debug</span>
-        </h2>
-        <pre id="log"></pre>
+      <!-- Panel lateral: config + logs -->
+      <section class="card">
+        <h2>Panel de demo</h2>
+
+        <div class="config-group">
+          <div class="field">
+            <label for="clientName">Nombre del cliente (para la demo)</label>
+            <input id="clientName" type="text" placeholder="Ej: Iván Fernández" />
+            <div class="hint">
+              Solo visual: sirve para mostrar en la cabecera con quién está “hablando” el agente.
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="ttsProvider">Motor de voz</label>
+            <select id="ttsProvider">
+              <option value="openai">OpenAI TTS</option>
+              <option value="elevenlabs">ElevenLabs TTS</option>
+            </select>
+            <div class="hint">
+              Cambia el motor de voz en caliente. El flujo de IA es el mismo, solo cambia quién sintetiza la voz.
+            </div>
+          </div>
+        </div>
+
+        <div class="hint">
+          <strong>Cómo usar la demo:</strong><br />
+          1) Escribe un nombre de cliente (opcional).<br />
+          2) Elige el motor de voz.<br />
+          3) Pulsa <em>Iniciar llamada</em>, escucha los tonos de establecimiento y habla como si fueses el cliente
+          al otro lado del teléfono.
+        </div>
+
+        <div class="logs-toggle" id="logsToggle">
+          <span class="chevron">▶</span>
+          <span>Ver detalles técnicos (logs)</span>
+        </div>
+        <div id="log-container">
+          <pre id="log"></pre>
+        </div>
       </section>
     </div>
   </div>
@@ -233,25 +427,117 @@
     const logEl = document.getElementById('log');
     const userTextEl = document.getElementById('userText');
     const agentTextEl = document.getElementById('agentText');
+    const callStatusEl = document.getElementById('callStatus');
+    const callStatusTextEl = document.getElementById('callStatusText');
+    const clientNameInput = document.getElementById('clientName');
+    const topClientNameEl = document.getElementById('topClientName');
+    const ttsSelect = document.getElementById('ttsProvider');
+    const topTtsEl = document.getElementById('topTts');
+    const logsToggle = document.getElementById('logsToggle');
+    const logContainer = document.getElementById('log-container');
 
     let mediaRecorder;
     let socket;
     let isRecording = false;
     let audioChunks = [];
+    let ringInterval = null;
 
     // Historial de conversación para mandar al backend
-    // Formato: [{ role: 'user'|'assistant', content: '...' }, ...]
     let conversationHistory = [];
 
     function addLog(msg) {
-      logEl.textContent += msg + '\n';
+      logEl.textContent += msg + '\\n';
       logEl.scrollTop = logEl.scrollHeight;
       console.log(msg);
     }
 
+    // Actualizar cabecera con nombre y TTS
+    clientNameInput.addEventListener('input', () => {
+      const name = clientNameInput.value.trim();
+      topClientNameEl.textContent = name
+        ? 'Cliente demo: ' + name
+        : 'Cliente demo: (sin nombre)';
+    });
+
+    ttsSelect.addEventListener('change', () => {
+      const label =
+        ttsSelect.value === 'elevenlabs'
+          ? 'ElevenLabs TTS'
+          : 'OpenAI TTS';
+      topTtsEl.textContent = 'Motor de voz: ' + label;
+    });
+
+    // Mostrar/ocultar logs
+    logsToggle.addEventListener('click', () => {
+      const open = logContainer.style.display === 'block';
+      logContainer.style.display = open ? 'none' : 'block';
+      logsToggle.classList.toggle('open', !open);
+    });
+
+    // Gestión de estados visuales de la llamada
+    function setCallStatus(mode) {
+      callStatusEl.classList.remove('idle', 'ringing');
+      if (mode === 'ringing') {
+        callStatusEl.classList.add('ringing');
+        callStatusTextEl.textContent = 'Llamando al agente...';
+      } else if (mode === 'active') {
+        callStatusEl.classList.add(''); // sin clase extra
+        callStatusTextEl.textContent = 'En llamada';
+      } else {
+        callStatusEl.classList.add('idle');
+        callStatusTextEl.textContent = 'Listo para llamar';
+      }
+    }
+
+    // Simular tonos de establecimiento (ring)
+    function startRingTone() {
+      stopRingTone();
+      try {
+        const AudioContext =
+          window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioContext();
+
+        function playBeep() {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = 440;
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.05);
+          gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.9);
+          osc.start();
+          osc.stop(ctx.currentTime + 1.0);
+        }
+
+        playBeep();
+        ringInterval = setInterval(playBeep, 1600);
+
+        // Guardar contexto para cerrarlo cuando paremos
+        ringInterval._audioCtx = ctx;
+      } catch (e) {
+        addLog('No se ha podido iniciar el tono de llamada: ' + e.message);
+      }
+    }
+
+    function stopRingTone() {
+      if (ringInterval) {
+        clearInterval(ringInterval);
+        if (ringInterval._audioCtx) {
+          try {
+            ringInterval._audioCtx.close();
+          } catch {}
+        }
+        ringInterval = null;
+      }
+    }
+
     async function startRecording() {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        addLog('ERROR: getUserMedia NO disponible (necesitas HTTPS o localhost).');
+        addLog(
+          'ERROR: getUserMedia NO disponible (necesitas HTTPS o localhost).'
+        );
         return;
       }
 
@@ -271,6 +557,7 @@
 
         mediaRecorder.onstart = () => {
           addLog('MediaRecorder iniciado');
+          setCallStatus('active');
         };
 
         mediaRecorder.ondataavailable = (e) => {
@@ -291,6 +578,7 @@
 
         mediaRecorder.onstop = async () => {
           addLog('MediaRecorder parado');
+          setCallStatus('idle');
 
           if (audioChunks.length > 0) {
             const blob = new Blob(audioChunks, { type: 'audio/webm' });
@@ -299,12 +587,11 @@
             const formData = new FormData();
             formData.append('audio', blob, 'grabacion.webm');
 
-            // Leer el selector de motor TTS
-            const ttsSelect = document.getElementById('ttsProvider');
+            // Motor de voz
             const ttsProvider = ttsSelect ? ttsSelect.value : 'openai';
             formData.append('ttsProvider', ttsProvider);
 
-            // Adjuntamos historial al backend
+            // Historial
             formData.append('history', JSON.stringify(conversationHistory));
 
             try {
@@ -324,7 +611,6 @@
 
               const data = await resp.json();
 
-              // Mostrar claro en la UI
               if (data.transcript) {
                 userTextEl.textContent = data.transcript;
                 conversationHistory.push({
@@ -332,7 +618,8 @@
                   content: data.transcript
                 });
               } else {
-                userTextEl.textContent = '(no se ha entendido nada claro)';
+                userTextEl.textContent =
+                  '(no se ha entendido nada claro)';
               }
 
               if (data.answer) {
@@ -343,7 +630,6 @@
                 });
               }
 
-              // Limitar historial a los últimos 10 mensajes
               if (conversationHistory.length > 10) {
                 conversationHistory = conversationHistory.slice(
                   conversationHistory.length - 10
@@ -371,7 +657,9 @@
                   const audio = new Audio(url);
                   audio.play();
                 } catch (e) {
-                  addLog('Error reproduciendo audio: ' + e.message);
+                  addLog(
+                    'Error reproduciendo audio: ' + e.message
+                  );
                 }
               }
             } catch (err) {
@@ -383,7 +671,8 @@
         mediaRecorder.start(500);
         isRecording = true;
         btn.classList.add('recording');
-        btn.querySelector('span:nth-child(2)').textContent = 'Parar';
+        btn.querySelector('span:nth-child(2)').textContent =
+          'Finalizar llamada';
       } catch (err) {
         addLog(
           'ERROR al pedir el micrófono: ' +
@@ -391,6 +680,7 @@
             ' - ' +
             err.message
         );
+        setCallStatus('idle');
       }
     }
 
@@ -416,8 +706,19 @@
         socket.onclose = () => addLog('WS cerrado');
         socket.onerror = () => addLog('WS error');
 
-        await startRecording();
+        // Simulamos tonos y luego arrancamos la grabación
+        setCallStatus('ringing');
+        startRingTone();
+        btn.classList.add('recording');
+        btn.querySelector('span:nth-child(2)').textContent =
+          'Finalizar llamada';
+
+        setTimeout(() => {
+          stopRingTone();
+          startRecording();
+        }, 2500); // ~2.5s de “llamando”
       } else {
+        stopRingTone();
         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
           mediaRecorder.stop();
         }
@@ -426,7 +727,8 @@
         }
         isRecording = false;
         btn.classList.remove('recording');
-        btn.querySelector('span:nth-child(2)').textContent = 'Hablar';
+        btn.querySelector('span:nth-child(2)').textContent =
+          'Iniciar llamada';
       }
     };
   </script>
