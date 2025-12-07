@@ -15,6 +15,62 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 // =============================
+// Helpers TTS
+// =============================
+
+async function ttsOpenAI(text) {
+  // TTS con OpenAI
+  const speech = await openai.audio.speech.create({
+    model: 'gpt-4o-mini-tts',
+    voice: 'alloy',
+    input: text
+  });
+
+  const audioBuffer = Buffer.from(await speech.arrayBuffer());
+  return audioBuffer.toString('base64'); // mp3 base64
+}
+
+async function ttsElevenLabs(text) {
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+  const voiceId = process.env.ELEVENLABS_VOICE_ID;
+
+  if (!apiKey || !voiceId) {
+    throw new Error('Falta ELEVENLABS_API_KEY o ELEVENLABS_VOICE_ID en las variables de entorno');
+  }
+
+  const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`;
+
+  // Node 18+ trae fetch global. Si diera error de "fetch is not defined", lo vemos.
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'xi-api-key': apiKey,
+      'Content-Type': 'application/json',
+      'Accept': 'audio/mpeg'
+    },
+    body: JSON.stringify({
+      text,
+      model_id: 'eleven_multilingual_v2',
+      voice_settings: {
+        stability: 0.5,
+        similarity_boost: 0.75,
+        style: 0.5,
+        use_speaker_boost: true
+      }
+    })
+  });
+
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error(`Error ElevenLabs: ${resp.status} - ${txt}`);
+  }
+
+  const arrayBuf = await resp.arrayBuffer();
+  const audioBuffer = Buffer.from(arrayBuf);
+  return audioBuffer.toString('base64'); // mp3 base64
+}
+
+// =============================
 // Asegurar carpeta uploads
 // =============================
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -51,7 +107,7 @@ app.post('/stt', upload.single('audio'), async (req, res) => {
       }
     }
 
-    // Limitar historial a los últimos 10 mensajes para no inflar tokens
+    // Limitar historial a los últimos 10 mensajes
     if (history.length > 10) {
       history = history.slice(history.length - 10);
     }
@@ -84,15 +140,22 @@ app.post('/stt', upload.single('audio'), async (req, res) => {
       const msgSilencio =
         'No he llegado a oírte bien, ¿te importa repetirlo un momento?';
 
-      const speechSilencio = await openai.audio.speech.create({
-        model: 'gpt-4o-mini-tts',
-        voice: 'alloy',
-        input: msgSilencio
-      });
-      const audioBufferSilencio = Buffer.from(await speechSilencio.arrayBuffer());
-      const audioBase64Silencio = audioBufferSilencio.toString('base64');
+      // Elegimos proveedor TTS también para este mensaje
+      const providerFromRequest = req.body?.ttsProvider;
+      const providerDefault = process.env.TTS_PROVIDER_DEFAULT || 'openai';
+      const ttsProvider = (providerFromRequest || providerDefault).toLowerCase();
+
+      let audioBase64Silencio;
+      if (ttsProvider === 'elevenlabs') {
+        console.log('Usando ElevenLabs TTS (silencio)');
+        audioBase64Silencio = await ttsElevenLabs(msgSilencio);
+      } else {
+        console.log('Usando OpenAI TTS (silencio)');
+        audioBase64Silencio = await ttsOpenAI(msgSilencio);
+      }
 
       fs.unlink(newPath, () => {});
+
       return res.json({
         transcript: '',
         answer: msgSilencio,
@@ -141,7 +204,7 @@ A lo largo de la conversación, tu objetivo es dejar cerrada una cita de instala
 COMPORTAMIENTO CONVERSACIONAL
 - Usa frases cortas y claras (2–4 frases por turno).
 - Si el cliente te da datos (nombre, dirección, disponibilidad…), reconócelos de forma natural:
-  "Perfecto, Iván", "Vale, entonces en Calle Mayor 5, ¿verdad?".
+  "Perfecto, Iván", "Vale, entonces en Calle Habana 1, ¿verdad?".
 - Apóyate en el historial de la conversación (mensajes anteriores) para no repetir preguntas innecesarias.
 - Si el cliente pregunta por temas fuera de tu ámbito (facturas, tarifas, incidencias de red), responde muy brevemente
   y redirige: "Eso lo llevan desde atención al cliente de Vodafone, pero si te parece dejamos primero cerrada la cita de instalación."
@@ -149,16 +212,14 @@ COMPORTAMIENTO CONVERSACIONAL
 
 REMATE DE LA CITA
 - Cuando ya tengáis un día y franja más o menos claros, repite el resumen:
-  "Entonces quedamos el martes por la mañana, entre las 9 y las 11, en Calle X, y acuérdate de tener la llave del RITI."
+  "Entonces quedamos el lunes de dentro de tres semanas, por la tarde, entre las 4 y las 6, en Calle X; acuérdate de tener la llave del RITI."
 - Despídete de forma sencilla y profesional:
   "Genial, pues muchas gracias, que tengas buen día."
 
 Ten en cuenta todo el historial de mensajes (user/assistant) que te envío y responde de forma coherente con él.
         `.trim()
       },
-      // Historial que viene del frontend
       ...history,
-      // Y el nuevo mensaje del usuario
       { role: 'user', content: textoUsuario }
     ];
 
@@ -171,20 +232,24 @@ Ten en cuenta todo el historial de mensajes (user/assistant) que te envío y res
       respuesta.choices?.[0]?.message?.content ||
       'No he recibido contenido de la IA.';
 
-    // 3) TTS: convertir la respuesta en audio
-    const speech = await openai.audio.speech.create({
-      model: 'gpt-4o-mini-tts',
-      voice: 'alloy',
-      input: contenido
-    });
+    // 3) Elegir proveedor de TTS
+    const providerFromRequest = req.body?.ttsProvider;
+    const providerDefault = process.env.TTS_PROVIDER_DEFAULT || 'openai';
+    const ttsProvider = (providerFromRequest || providerDefault).toLowerCase();
 
-    const audioBuffer = Buffer.from(await speech.arrayBuffer());
-    const audioBase64 = audioBuffer.toString('base64');
+    let audioBase64;
+    if (ttsProvider === 'elevenlabs') {
+      console.log('Usando ElevenLabs TTS');
+      audioBase64 = await ttsElevenLabs(contenido);
+    } else {
+      console.log('Usando OpenAI TTS');
+      audioBase64 = await ttsOpenAI(contenido);
+    }
 
     // Borrar archivo temporal
     fs.unlink(newPath, () => {});
 
-    // Devolver transcript + respuesta + audio + historial actualizado
+    // Devolver transcript + respuesta + audio
     res.json({
       transcript: textoUsuario,
       answer: contenido,

@@ -1,308 +1,434 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Agente de voz</title>
+  <meta charset="UTF-8" />
+  <title>Agente de voz Zener / Vodafone</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
+    :root {
+      color-scheme: dark;
+    }
+    * {
+      box-sizing: border-box;
+    }
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0f172a;
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+      background: radial-gradient(circle at top, #1f2937 0, #020617 55%);
       color: #e5e7eb;
-      margin: 0;
-      padding: 2rem;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+    }
+    .app {
+      width: 100%;
+      max-width: 1100px;
+      padding: 1.5rem;
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
+      gap: 1rem;
     }
-    h1 {
+    header h1 {
       margin: 0;
-      font-size: 1.8rem;
+      font-size: 1.6rem;
     }
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
+    header p {
+      margin: 0.25rem 0 0;
+      color: #9ca3af;
+      font-size: 0.9rem;
+    }
+    .top-row {
       display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+    }
+    .controls label {
+      color: #9ca3af;
+    }
+    .controls select {
+      background: #020617;
+      color: #e5e7eb;
+      border-radius: 0.5rem;
+      border: 1px solid #4b5563;
+      padding: 0.25rem 0.5rem;
     }
     #btnToggle {
-      padding: 0.75rem 1.5rem;
-      border-radius: 999px;
       border: none;
+      border-radius: 999px;
+      padding: 0.5rem 1.4rem;
       font-size: 1rem;
       cursor: pointer;
-      background: #22c55e;
-      color: #022c22;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #0b1120;
       font-weight: 600;
-      box-shadow: 0 10px 25px rgba(34, 197, 94, 0.3);
-      transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      box-shadow: 0 10px 25px rgba(34, 197, 94, 0.35);
+      transition: transform 0.08s ease-out, box-shadow 0.08s ease-out,
+        background 0.15s ease-out;
     }
     #btnToggle:hover {
       transform: translateY(-1px);
-      box-shadow: 0 15px 30px rgba(34, 197, 94, 0.4);
-      background: #16a34a;
+      box-shadow: 0 14px 35px rgba(34, 197, 94, 0.45);
     }
     #btnToggle.recording {
-      background: #ef4444;
+      background: linear-gradient(135deg, #ef4444, #b91c1c);
+      box-shadow: 0 10px 25px rgba(239, 68, 68, 0.5);
       color: #fee2e2;
-      box-shadow: 0 10px 25px rgba(248, 113, 113, 0.3);
     }
-    .conversation {
+    #btnToggle span.dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #22c55e;
+    }
+    #btnToggle.recording span.dot {
+      background: #fecaca;
+    }
+
+    .main-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr);
       gap: 1rem;
     }
-    .bubble {
+    @media (max-width: 900px) {
+      .main-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .panel {
+      background: rgba(15, 23, 42, 0.9);
       border-radius: 1rem;
       padding: 1rem;
-      background: rgba(15, 23, 42, 0.85);
-      border: 1px solid rgba(148, 163, 184, 0.3);
-      min-height: 120px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      box-shadow: 0 15px 35px rgba(15, 23, 42, 0.7);
+    }
+    .panel h2 {
+      margin: 0 0 0.75rem;
+      font-size: 1rem;
+      color: #e5e7eb;
       display: flex;
-      flex-direction: column;
+      align-items: center;
       gap: 0.5rem;
     }
-    .bubble h2 {
-      margin: 0;
-      font-size: 0.9rem;
+    .badge {
+      font-size: 0.7rem;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.06em;
+      padding: 0.1rem 0.4rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
       color: #9ca3af;
     }
-    .bubble p {
-      margin: 0;
-      font-size: 1rem;
-      line-height: 1.5;
-      color: #e5e7eb;
+    .bubble {
+      border-radius: 0.9rem;
+      padding: 0.7rem 0.9rem;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(75, 85, 99, 0.7);
+      min-height: 2.3rem;
+      font-size: 0.95rem;
       white-space: pre-wrap;
+      color: #d1d5db;
     }
     .bubble.user {
-      border-left: 3px solid #22c55e;
+      border-color: rgba(96, 165, 250, 0.9);
+      background: rgba(15, 23, 42, 0.95);
     }
     .bubble.agent {
-      border-left: 3px solid #38bdf8;
+      border-color: rgba(52, 211, 153, 0.9);
+      background: rgba(6, 78, 59, 0.2);
     }
-    details {
-      margin-top: 1rem;
-      font-size: 0.9rem;
-      color: #9ca3af;
-    }
-    summary {
-      cursor: pointer;
-      margin-bottom: 0.5rem;
-    }
+
     #log {
-      background: #020617;
-      border-radius: 0.5rem;
-      padding: 0.75rem;
-      max-height: 220px;
-      overflow: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
       font-size: 0.8rem;
-      border: 1px solid #1f2937;
+      background: #020617;
+      border-radius: 0.6rem;
+      padding: 0.7rem;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      height: 260px;
+      overflow-y: auto;
       white-space: pre-wrap;
-    }
-    @media (max-width: 700px) {
-      .conversation {
-        grid-template-columns: 1fr;
-      }
+      color: #9ca3af;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>Agente de voz</h1>
-      <p style="margin-top:0.25rem; color:#9ca3af; font-size:0.9rem;">
-        Pulsa <strong>Hablar</strong>, di algo (ej: “cuéntame un chiste corto”) y luego pulsa <strong>Parar</strong>.
-      </p>
-    </header>
+  <div class="app">
+    <div class="top-row">
+      <header>
+        <h1>Agente de voz Zener / Vodafone</h1>
+        <p>
+          Pulsa <strong>Hablar</strong>, di algo (por ejemplo “hola, soy Iván
+          y quiero concertar la cita”) y luego pulsa <strong>Parar</strong>.
+        </p>
+      </header>
 
-    <button id="btnToggle">Hablar</button>
-
-    <section class="conversation">
-      <div class="bubble user">
-        <h2>Tú dijiste</h2>
-        <p id="userText">Aquí verás lo que el sistema entiende de tu voz.</p>
+      <div class="controls">
+        <label for="ttsProvider">Motor de voz:</label>
+        <select id="ttsProvider">
+          <option value="openai">OpenAI TTS</option>
+          <option value="elevenlabs">ElevenLabs TTS</option>
+        </select>
+        <button id="btnToggle">
+          <span class="dot"></span>
+          <span>Hablar</span>
+        </button>
       </div>
-      <div class="bubble agent">
-        <h2>El agente responde</h2>
-        <p id="agentText">Aquí verás la respuesta generada por la IA.</p>
-      </div>
-    </section>
+    </div>
 
-    <details>
-      <summary>Ver detalles técnicos (logs)</summary>
-      <pre id="log"></pre>
-    </details>
+    <div class="main-grid">
+      <section class="panel">
+        <h2>
+          Conversación
+          <span class="badge">Resumen en texto</span>
+        </h2>
+
+        <div style="margin-bottom: 0.75rem;">
+          <div style="font-size: 0.8rem; color: #9ca3af; margin-bottom: 0.2rem;">
+            Tú dijiste:
+          </div>
+          <div class="bubble user" id="userText">
+            (aún no has hablado)
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size: 0.8rem; color: #9ca3af; margin-bottom: 0.2rem;">
+            El agente responde:
+          </div>
+          <div class="bubble agent" id="agentText">
+            Aquí aparecerán las respuestas del agente de Zener en nombre de
+            Vodafone.
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>
+          Log técnico
+          <span class="badge">Debug</span>
+        </h2>
+        <pre id="log"></pre>
+      </section>
+    </div>
   </div>
 
-<script>
-  const btn = document.getElementById('btnToggle');
-  const log = document.getElementById('log');
-  const userTextEl = document.getElementById('userText');
-  const agentTextEl = document.getElementById('agentText');
+  <script>
+    const btn = document.getElementById('btnToggle');
+    const logEl = document.getElementById('log');
+    const userTextEl = document.getElementById('userText');
+    const agentTextEl = document.getElementById('agentText');
 
-  let mediaRecorder;
-  let socket;
-  let isRecording = false;
-  let audioChunks = [];
+    let mediaRecorder;
+    let socket;
+    let isRecording = false;
+    let audioChunks = [];
 
-  // Historial de conversación para mandar al backend
-  // Formato: [{ role: 'user'|'assistant', content: '...' }, ...]
-  let conversationHistory = [];
+    // Historial de conversación para mandar al backend
+    // Formato: [{ role: 'user'|'assistant', content: '...' }, ...]
+    let conversationHistory = [];
 
-  function addLog(msg) {
-    log.textContent += msg + "\n";
-    log.scrollTop = log.scrollHeight;
-    console.log(msg);
-  }
-
-  async function startRecording() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      addLog("ERROR: getUserMedia NO disponible (necesitas HTTPS o localhost).");
-      return;
+    function addLog(msg) {
+      logEl.textContent += msg + '\n';
+      logEl.scrollTop = logEl.scrollHeight;
+      console.log(msg);
     }
 
-    try {
-      addLog("Pidiendo permiso de micrófono...");
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: false
-        }
-      });
-      addLog("Permiso de micrófono CONCEDIDO.");
+    async function startRecording() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        addLog('ERROR: getUserMedia NO disponible (necesitas HTTPS o localhost).');
+        return;
+      }
 
-      audioChunks = [];
-      mediaRecorder = new MediaRecorder(stream);
-
-      mediaRecorder.onstart = () => {
-        addLog("MediaRecorder iniciado");
-      };
-
-      mediaRecorder.ondataavailable = (e) => {
-        addLog("Chunk de audio generado, tamaño: " + e.data.size);
-        audioChunks.push(e.data);
-
-        if (e.data.size > 0 && socket && socket.readyState === WebSocket.OPEN) {
-          e.data.arrayBuffer().then(buf => {
-            addLog("Enviando chunk de audio al servidor (" + buf.byteLength + " bytes)");
-            socket.send(buf);
-          });
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        addLog("MediaRecorder parado");
-
-        if (audioChunks.length > 0) {
-          const blob = new Blob(audioChunks, { type: 'audio/webm' });
-          addLog("Audio total preparado para STT, tamaño: " + blob.size);
-
-          const formData = new FormData();
-          formData.append('audio', blob, 'grabacion.webm');
-          // Adjuntamos historial al backend
-          formData.append('history', JSON.stringify(conversationHistory));
-
-          try {
-            addLog("Enviando audio a /stt...");
-            const resp = await fetch('/stt', {
-              method: 'POST',
-              body: formData
-            });
-
-            if (!resp.ok) {
-              const errText = await resp.text();
-              addLog("Error STT HTTP: " + resp.status + " - " + errText);
-              return;
-            }
-
-            const data = await resp.json();
-
-            // Mostrar claro en la UI
-            if (data.transcript) {
-              userTextEl.textContent = data.transcript;
-              conversationHistory.push({ role: 'user', content: data.transcript });
-            } else {
-              userTextEl.textContent = '(no se ha entendido nada claro)';
-            }
-
-            if (data.answer) {
-              agentTextEl.textContent = data.answer;
-              conversationHistory.push({ role: 'assistant', content: data.answer });
-            }
-
-            // Limitar historial a los últimos 10 mensajes
-            if (conversationHistory.length > 10) {
-              conversationHistory = conversationHistory.slice(conversationHistory.length - 10);
-            }
-
-            addLog("Transcripción: " + (data.transcript || ''));
-            addLog("Respuesta IA (texto): " + (data.answer || ''));
-
-            if (data.audio) {
-              try {
-                addLog("Reproduciendo audio de respuesta...");
-                const audioBytes = Uint8Array.from(atob(data.audio), c => c.charCodeAt(0));
-                const audioBlob = new Blob([audioBytes], { type: 'audio/mpeg' });
-                const url = URL.createObjectURL(audioBlob);
-                const audio = new Audio(url);
-                audio.play();
-              } catch (e) {
-                addLog("Error reproduciendo audio: " + e.message);
-              }
-            }
-          } catch (err) {
-            addLog("Error llamando a /stt: " + err.message);
+      try {
+        addLog('Pidiendo permiso de micrófono...');
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: false
           }
+        });
+        addLog('Permiso de micrófono CONCEDIDO.');
+
+        audioChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.onstart = () => {
+          addLog('MediaRecorder iniciado');
+        };
+
+        mediaRecorder.ondataavailable = (e) => {
+          addLog('Chunk de audio generado, tamaño: ' + e.data.size);
+          audioChunks.push(e.data);
+
+          if (e.data.size > 0 && socket && socket.readyState === WebSocket.OPEN) {
+            e.data.arrayBuffer().then((buf) => {
+              addLog(
+                'Enviando chunk de audio al servidor (' +
+                  buf.byteLength +
+                  ' bytes)'
+              );
+              socket.send(buf);
+            });
+          }
+        };
+
+        mediaRecorder.onstop = async () => {
+          addLog('MediaRecorder parado');
+
+          if (audioChunks.length > 0) {
+            const blob = new Blob(audioChunks, { type: 'audio/webm' });
+            addLog('Audio total preparado para STT, tamaño: ' + blob.size);
+
+            const formData = new FormData();
+            formData.append('audio', blob, 'grabacion.webm');
+
+            // Leer el selector de motor TTS
+            const ttsSelect = document.getElementById('ttsProvider');
+            const ttsProvider = ttsSelect ? ttsSelect.value : 'openai';
+            formData.append('ttsProvider', ttsProvider);
+
+            // Adjuntamos historial al backend
+            formData.append('history', JSON.stringify(conversationHistory));
+
+            try {
+              addLog('Enviando audio a /stt...');
+              const resp = await fetch('/stt', {
+                method: 'POST',
+                body: formData
+              });
+
+              if (!resp.ok) {
+                const errText = await resp.text();
+                addLog(
+                  'Error STT HTTP: ' + resp.status + ' - ' + errText
+                );
+                return;
+              }
+
+              const data = await resp.json();
+
+              // Mostrar claro en la UI
+              if (data.transcript) {
+                userTextEl.textContent = data.transcript;
+                conversationHistory.push({
+                  role: 'user',
+                  content: data.transcript
+                });
+              } else {
+                userTextEl.textContent = '(no se ha entendido nada claro)';
+              }
+
+              if (data.answer) {
+                agentTextEl.textContent = data.answer;
+                conversationHistory.push({
+                  role: 'assistant',
+                  content: data.answer
+                });
+              }
+
+              // Limitar historial a los últimos 10 mensajes
+              if (conversationHistory.length > 10) {
+                conversationHistory = conversationHistory.slice(
+                  conversationHistory.length - 10
+                );
+              }
+
+              addLog(
+                'Transcripción: ' + (data.transcript || '')
+              );
+              addLog(
+                'Respuesta IA (texto): ' + (data.answer || '')
+              );
+
+              if (data.audio) {
+                try {
+                  addLog('Reproduciendo audio de respuesta...');
+                  const audioBytes = Uint8Array.from(
+                    atob(data.audio),
+                    (c) => c.charCodeAt(0)
+                  );
+                  const audioBlob = new Blob([audioBytes], {
+                    type: 'audio/mpeg'
+                  });
+                  const url = URL.createObjectURL(audioBlob);
+                  const audio = new Audio(url);
+                  audio.play();
+                } catch (e) {
+                  addLog('Error reproduciendo audio: ' + e.message);
+                }
+              }
+            } catch (err) {
+              addLog('Error llamando a /stt: ' + err.message);
+            }
+          }
+        };
+
+        mediaRecorder.start(500);
+        isRecording = true;
+        btn.classList.add('recording');
+        btn.querySelector('span:nth-child(2)').textContent = 'Parar';
+      } catch (err) {
+        addLog(
+          'ERROR al pedir el micrófono: ' +
+            err.name +
+            ' - ' +
+            err.message
+        );
+      }
+    }
+
+    btn.onclick = async () => {
+      if (!isRecording) {
+        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+        const wsUrl = `${protocol}://${location.host}`;
+        addLog('Conectando WebSocket a: ' + wsUrl);
+
+        socket = new WebSocket(wsUrl);
+        socket.binaryType = 'arraybuffer';
+
+        socket.onopen = () => {
+          addLog('WS conectado');
+          // Si quieres ver un saludo de prueba por WS, descomenta:
+          // socket.send("TEST DESDE EL NAVEGADOR");
+        };
+
+        socket.onmessage = (event) => {
+          addLog('Respuesta servidor: ' + event.data);
+        };
+
+        socket.onclose = () => addLog('WS cerrado');
+        socket.onerror = () => addLog('WS error');
+
+        await startRecording();
+      } else {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
         }
-      };
-
-      mediaRecorder.start(500);
-      isRecording = true;
-      btn.textContent = 'Parar';
-      btn.classList.add('recording');
-    } catch (err) {
-      addLog("ERROR al pedir el micrófono: " + err.name + " - " + err.message);
-    }
-  }
-
-  btn.onclick = async () => {
-    if (!isRecording) {
-      const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-      const wsUrl = `${protocol}://${location.host}`;
-      addLog("Conectando WebSocket a: " + wsUrl);
-
-      socket = new WebSocket(wsUrl);
-      socket.binaryType = "arraybuffer";
-
-      socket.onopen = () => {
-        addLog("WS conectado");
-        socket.send("TEST DESDE EL NAVEGADOR");
-      };
-
-      socket.onmessage = (event) => {
-        addLog("Respuesta servidor: " + event.data);
-      };
-
-      socket.onclose = () => addLog("WS cerrado");
-      socket.onerror = () => addLog("WS error");
-
-      await startRecording();
-    } else {
-      if (mediaRecorder && mediaRecorder.state !== "inactive") {
-        mediaRecorder.stop();
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.close();
+        }
+        isRecording = false;
+        btn.classList.remove('recording');
+        btn.querySelector('span:nth-child(2)').textContent = 'Hablar';
       }
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.close();
-      }
-      isRecording = false;
-      btn.textContent = 'Hablar';
-      btn.classList.remove('recording');
-    }
-  };
-</script>
-
+    };
+  </script>
 </body>
 </html>
