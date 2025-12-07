@@ -40,7 +40,7 @@ async function ttsElevenLabs(text) {
 
   const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`;
 
-  // Node 18+ trae fetch global. Si diera error de "fetch is not defined", lo vemos.
+  // Node 18+ trae fetch global
   const resp = await fetch(url, {
     method: 'POST',
     headers: {
@@ -52,9 +52,9 @@ async function ttsElevenLabs(text) {
       text,
       model_id: 'eleven_multilingual_v2',
       voice_settings: {
-        stability: 0.5,
-        similarity_boost: 0.75,
-        style: 0.5,
+        stability: 0.35,
+        similarity_boost: 0.8,
+        style: 0.7,
         use_speaker_boost: true
       }
     })
@@ -112,6 +112,9 @@ app.post('/stt', upload.single('audio'), async (req, res) => {
       history = history.slice(history.length - 10);
     }
 
+    // Nombre de cliente recibido desde el front
+    const clientName = (req.body?.clientName || '').trim();
+
     const filePath = req.file.path;        // sin extensión
     const newPath = filePath + '.webm';    // añadimos .webm para Whisper
     fs.renameSync(filePath, newPath);
@@ -140,7 +143,6 @@ app.post('/stt', upload.single('audio'), async (req, res) => {
       const msgSilencio =
         'No he llegado a oírte bien, ¿te importa repetirlo un momento?';
 
-      // Elegimos proveedor TTS también para este mensaje
       const providerFromRequest = req.body?.ttsProvider;
       const providerDefault = process.env.TTS_PROVIDER_DEFAULT || 'openai';
       const ttsProvider = (providerFromRequest || providerDefault).toLowerCase();
@@ -165,11 +167,10 @@ app.post('/stt', upload.single('audio'), async (req, res) => {
 
     console.log('Transcripción limpia:', textoUsuario);
 
-    // 2) Construir mensajes con MEMORIA
-    const messages = [
-      {
-        role: 'system',
-        content: `
+    // 2) Construir mensajes con MEMORIA + nuevo system prompt
+    const systemMessage = {
+      role: 'system',
+      content: `
 Eres un agente de voz que trabaja para la subcontrata Zener, en España.
 Tu trabajo es hablar con clientes de Vodafone para concertar una cita de instalación de fibra óptica en su domicilio.
 
@@ -181,15 +182,19 @@ IDENTIDAD Y TONO
 - Evita expresiones claramente latinoamericanas (ahorita, chévere, ustedes, etc.).
 - Si el cliente está nervioso o perdido, mantén la calma y explica las cosas con claridad.
 
-CUÁNDO PRESENTARTE
-- SOLO te presentas con la frase típica de apertura si el contexto suena a inicio de conversación
-  (primer intercambio, saludos tipo "hola", "buenos días", "me habéis llamado", etc.).
-- La presentación puedes hacerla así:
-  "Hola, soy de Zener, te llamo en nombre de Vodafone por la instalación de la fibra óptica."
-- Si el historial muestra que ya os habéis presentado y estáis hablando de detalles (nombre, dirección, horarios, RITI),
-  NO repitas la presentación. Continúa la conversación de forma natural.
+NOMBRE DEL CLIENTE
+- El nombre del cliente recibido desde la aplicación es: "${clientName || 'desconocido'}".
+- Si el nombre está informado, utilízalo en el saludo inicial y en la conversación ("señor ${clientName}", "Perfecto, ${clientName}").
+- Si NO se ha informado nombre, en lugar de usar un nombre inventado, di: "¿Hablo con el titular de la línea?".
 
-OBJETIVO PRINCIPAL
+PRIMERA INTERVENCIÓN (DESPUÉS DE LOS TONOS)
+- Si en el historial NO hay todavía ningún mensaje de asistente (es decir, es la primera vez que hablas con el cliente en esta llamada),
+  DEBES empezar SIEMPRE con un saludo muy concreto:
+  - Si hay nombre de cliente: "Hola, buenos días, le llamo del servicio técnico de Vodafone. ¿Hablo con ${clientName || 'el titular de la línea'}?"
+  - Si no hay nombre: "Hola, buenos días, le llamo del servicio técnico de Vodafone. ¿Hablo con el titular de la línea?"
+- Este saludo solo se usa en tu PRIMER mensaje de la conversación. En el resto de turnos NO debes repetirlo.
+
+OBJETIVO PRINCIPAL DE LA LLAMADA
 A lo largo de la conversación, tu objetivo es dejar cerrada una cita de instalación de fibra. Para ello debes:
 
   1) Confirmar el nombre del cliente si aún no ha quedado claro.
@@ -198,11 +203,23 @@ A lo largo de la conversación, tu objetivo es dejar cerrada una cita de instala
   4) Si NO tiene acceso al RITI:
      - Explica que debe pedir la llave al presidente de la comunidad, al administrador de fincas o al conserje.
      - Recalca que sin esa llave el técnico no podrá completar la instalación.
-  5) Proponer una o varias fechas/franjas horarias para la cita.
-  6) Confirmar la franja elegida y hacer un pequeño resumen al cerrar.
+
+FRANJAS HORARIAS PARA AGENDAR
+- Trabajamos siempre con días laborables.
+- En condiciones normales, ofreces CITA en:
+  - Lunes, miércoles y viernes laborables,
+  - En la franja de 12:00 a 14:00.
+- Si el cliente pide una cita que esté CLARAMENTE a más de 6 días en el futuro (por ejemplo "dentro de dos semanas", "para la siguiente semana", etc.):
+  - En ese caso, SOLO puedes ofrecer:
+    - Lunes por la tarde (por ejemplo entre las 16:00 y las 18:00),
+    - Y jueves por la tarde (por ejemplo entre las 16:00 y las 18:00).
+- Indica siempre de forma clara día y franja horaria cuando propongas o cierres la cita.
+- Si el cliente te propone un día/hora fuera de estas reglas, intenta adaptarlo a la opción más parecida que cumpla las restricciones y explícaselo con naturalidad.
 
 COMPORTAMIENTO CONVERSACIONAL
 - Usa frases cortas y claras (2–4 frases por turno).
+- Puedes usar alguna pequeña muletilla natural de vez en cuando, como:
+  "vale", "a ver", "mira", "pues", "mmm", "déjame que lo piense un segundo", siempre en cantidades moderadas.
 - Si el cliente te da datos (nombre, dirección, disponibilidad…), reconócelos de forma natural:
   "Perfecto, Iván", "Vale, entonces en Calle Habana 1, ¿verdad?".
 - Apóyate en el historial de la conversación (mensajes anteriores) para no repetir preguntas innecesarias.
@@ -212,13 +229,16 @@ COMPORTAMIENTO CONVERSACIONAL
 
 REMATE DE LA CITA
 - Cuando ya tengáis un día y franja más o menos claros, repite el resumen:
-  "Entonces quedamos el lunes de dentro de tres semanas, por la tarde, entre las 4 y las 6, en Calle X; acuérdate de tener la llave del RITI."
+  "Entonces quedamos el [día] a las [hora/franja], en la dirección que hemos comentado. Acuérdate de tener la llave del RITI."
 - Despídete de forma sencilla y profesional:
   "Genial, pues muchas gracias, que tengas buen día."
 
 Ten en cuenta todo el historial de mensajes (user/assistant) que te envío y responde de forma coherente con él.
-        `.trim()
-      },
+      `.trim()
+    };
+
+    const messages = [
+      systemMessage,
       ...history,
       { role: 'user', content: textoUsuario }
     ];

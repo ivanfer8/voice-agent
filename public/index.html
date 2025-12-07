@@ -317,7 +317,6 @@
       white-space: pre-wrap;
       color: #9ca3af;
     }
-
   </style>
 </head>
 <body>
@@ -387,7 +386,7 @@
             <label for="clientName">Nombre del cliente (para la demo)</label>
             <input id="clientName" type="text" placeholder="Ej: Iván Fernández" />
             <div class="hint">
-              Solo visual: sirve para mostrar en la cabecera con quién está “hablando” el agente.
+              Solo visual: sirve para mostrar en la cabecera con quién está “hablando” el agente y se usa en el saludo inicial.
             </div>
           </div>
 
@@ -407,7 +406,7 @@
           <strong>Cómo usar la demo:</strong><br />
           1) Escribe un nombre de cliente (opcional).<br />
           2) Elige el motor de voz.<br />
-          3) Pulsa <em>Iniciar llamada</em>, escucha los tonos de establecimiento y habla como si fueses el cliente
+          3) Pulsa <em>Iniciar llamada</em>, escucha los tonos de establecimiento (solo la primera vez) y habla como si fueses el cliente
           al otro lado del teléfono.
         </div>
 
@@ -441,12 +440,13 @@
     let isRecording = false;
     let audioChunks = [];
     let ringInterval = null;
+    let hasRungOnce = false; // tonos solo primera vez
 
     // Historial de conversación para mandar al backend
     let conversationHistory = [];
 
     function addLog(msg) {
-      logEl.textContent += msg + '\\n';
+      logEl.textContent += msg + '\n';
       logEl.scrollTop = logEl.scrollHeight;
       console.log(msg);
     }
@@ -481,7 +481,6 @@
         callStatusEl.classList.add('ringing');
         callStatusTextEl.textContent = 'Llamando al agente...';
       } else if (mode === 'active') {
-        callStatusEl.classList.add(''); // sin clase extra
         callStatusTextEl.textContent = 'En llamada';
       } else {
         callStatusEl.classList.add('idle');
@@ -513,8 +512,6 @@
 
         playBeep();
         ringInterval = setInterval(playBeep, 1600);
-
-        // Guardar contexto para cerrarlo cuando paremos
         ringInterval._audioCtx = ctx;
       } catch (e) {
         addLog('No se ha podido iniciar el tono de llamada: ' + e.message);
@@ -590,6 +587,10 @@
             // Motor de voz
             const ttsProvider = ttsSelect ? ttsSelect.value : 'openai';
             formData.append('ttsProvider', ttsProvider);
+
+            // Nombre del cliente (para saludo inicial)
+            const clientName = clientNameInput ? clientNameInput.value : '';
+            formData.append('clientName', clientName);
 
             // Historial
             formData.append('history', JSON.stringify(conversationHistory));
@@ -695,8 +696,6 @@
 
         socket.onopen = () => {
           addLog('WS conectado');
-          // Si quieres ver un saludo de prueba por WS, descomenta:
-          // socket.send("TEST DESDE EL NAVEGADOR");
         };
 
         socket.onmessage = (event) => {
@@ -706,17 +705,27 @@
         socket.onclose = () => addLog('WS cerrado');
         socket.onerror = () => addLog('WS error');
 
-        // Simulamos tonos y luego arrancamos la grabación
-        setCallStatus('ringing');
-        startRingTone();
-        btn.classList.add('recording');
-        btn.querySelector('span:nth-child(2)').textContent =
-          'Finalizar llamada';
+        // Primera vez: tonos de llamada
+        if (!hasRungOnce) {
+          setCallStatus('ringing');
+          startRingTone();
+          btn.classList.add('recording');
+          btn.querySelector('span:nth-child(2)').textContent =
+            'Finalizar llamada';
 
-        setTimeout(() => {
-          stopRingTone();
+          setTimeout(() => {
+            stopRingTone();
+            hasRungOnce = true;
+            startRecording();
+          }, 2500); // ~2.5s de “llamando”
+        } else {
+          // Siguientes turnos: ya sin tonos
+          setCallStatus('active');
+          btn.classList.add('recording');
+          btn.querySelector('span:nth-child(2)').textContent =
+            'Finalizar llamada';
           startRecording();
-        }, 2500); // ~2.5s de “llamando”
+        }
       } else {
         stopRingTone();
         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
