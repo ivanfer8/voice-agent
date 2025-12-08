@@ -76,127 +76,126 @@ export class GroqSTT extends STTProvider {
    * Procesar audio acumulado en el buffer
    */
   async processBufferedAudio() {
-    if (this.audioBuffer.length === 0 || !this.isActive) return;
+  // Si no hay audio o el STT está parado, no hacemos nada
+  if (!this.isActive || this.audioBuffer.length === 0) return;
 
-    try {
-      // Combinar todos los chunks en un solo buffer
-      const combinedBuffer = Buffer.concat(this.audioBuffer);
-      this.audioBuffer = []; // Limpiar buffer
+  try {
+    // 👉 Nos quedamos SOLO con el último chunk recibido.
+    // Cada chunk debería ser ~1s de audio WebM generado por MediaRecorder.
+    const lastChunk = this.audioBuffer[this.audioBuffer.length - 1];
+    this.audioBuffer = []; // limpiamos el buffer para el siguiente ciclo
 
-      const audioSize = combinedBuffer.length;
-      
-      // Solo procesar si hay suficiente audio (mínimo 32KB ~ 1s de audio)
-      if (audioSize < 32000) {
-        logAudio('buffer_too_small', {
-          sessionId: this.sessionId,
-          size: audioSize,
-        });
-        return;
-      }
+    if (!lastChunk) return;
 
-      const transcriptStartTime = Date.now();
+    const combinedBuffer = lastChunk;
+    const audioSize = combinedBuffer.length;
 
-      logAudio('sending_to_groq', {
+    // Umbral mínimo: si es demasiado pequeño, no mandamos nada a Groq
+    if (audioSize < 8000) {
+      logAudio('buffer_too_small', {
         sessionId: this.sessionId,
         size: audioSize,
       });
+      return;
+    }
 
-      // Crear archivo temporal para Groq
-      const fs = await import('fs');
-      const path = await import('path');
-      const os = await import('os');
-      
-      const tempDir = os.tmpdir();
-      const tempFilePath = path.join(tempDir, `audio-${this.sessionId}-${Date.now()}.webm`);
-      
-      // Escribir buffer a archivo temporal
-      fs.writeFileSync(tempFilePath, combinedBuffer);
-      
-      logger.debug(`Archivo temporal creado: ${tempFilePath} (${audioSize} bytes)`);
+    const transcriptStartTime = Date.now();
 
-      // Transcribir con Groq Whisper
-      const transcription = await this.client.audio.transcriptions.create({
-        file: fs.createReadStream(tempFilePath),
-        model: 'whisper-large-v3',
-        language: 'es',
-        response_format: 'json',
-        temperature: 0.0,
-      });
+    logAudio('sending_to_groq', {
+      sessionId: this.sessionId,
+      size: audioSize,
+    });
 
-      // Eliminar archivo temporal
-      try {
-        fs.unlinkSync(tempFilePath);
-      } catch (cleanupError) {
-        logger.warn(`No se pudo eliminar archivo temporal: ${cleanupError.message}`);
-      }
+    // Guardamos el buffer en un fichero temporal .webm
+    const fs = await import('fs');
+    const path = await import('path');
+    const os = await import('os');
 
-      const transcriptTime = Date.now() - transcriptStartTime;
-      logLatency('groq_transcription', transcriptTime, { 
+    const tempDir = os.tmpdir();
+    const tempFilePath = path.join(
+      tempDir,
+      `audio-${this.sessionId}-${Date.now()}.webm`
+    );
+
+    await fs.promises.writeFile(tempFilePath, combinedBuffer);
+
+    logger.debug(
+      `Archivo temporal creado: ${tempFilePath} (${audioSize} bytes)`
+    );
+
+    // Llamada a la API de Groq (Whisper)
+    const transcription = await this.client.audio.transcriptions.create({
+      file: fs.createReadStream(tempFilePath),
+      model: 'whisper-large-v3',
+      language: 'es',
+      response_format: 'json',
+      temperature: 0.0,
+    });
+
+    // Limpiamos el fichero temporal
+    try {
+      await fs.promises.unlink(tempFilePath);
+    } catch (cleanupError) {
+      logger.warn(
+        `No se pudo eliminar archivo temporal: ${cleanupError.message}`
+      );
+    }
+
+    // Distintas posibles formas en las que venga el texto de Groq
+    const transcriptText =
+      (typeof transcription.text === 'string'
+        ? transcription.text
+        : transcription?.results?.[0]?.alternatives?.[0]?.text || ''
+      ).trim();
+
+    const durationMs = Date.now() - transcriptStartTime;
+
+    logAudio('groq_transcription_success', {
+      sessionId: this.sessionId,
+      durationMs,
+      text: transcriptText,
+    });
+
+    if (transcriptText && this.transcriptionCallback) {
+      await this.transcriptionCallback(transcriptText);
+    }
+  } catch (error) {
+    // Logs “bonitos” en consola (como los que ya veías)
+    console.log('=================================');
+    console.log('ERROR EN GROQ STT');
+    console.log('Session:', this.sessionId);
+    console.log(
+      'Error Message:',
+      error?.status
+        ? `${error.status} ${JSON.stringify(error.error || error)}`
+        : error?.message || String(error)
+    );
+    console.log('Error Name:', error?.name || 'Error');
+    console.log('Error Status:', error?.status || 'N/A');
+    console.log('Error Code:', error?.code || 'N/A');
+    console.log('Full Error:', JSON.stringify(error, null, 2));
+    console.log('=================================');
+
+    // Log estructurado con pino
+    const errorMessage = error?.status
+      ? `${error.status} ${JSON.stringify(error.error || error)}`
+      : error?.message || String(error);
+
+    logger.error(
+      {
+        module: 'GroqSTT',
         sessionId: this.sessionId,
-        audioSize,
-      });
-
-      const text = transcription.text?.trim();
-
-      if (!text || text.length === 0) {
-        logAudio('empty_transcription', { sessionId: this.sessionId });
-        return;
-      }
-
-      logger.debug(`Transcripción Groq: "${text}"`);
-
-      logAudio('transcript_received', {
-        sessionId: this.sessionId,
-        text,
-        isFinal: true,
-      });
-
-      // Invocar callback con transcripción final
-      if (this.transcriptCallback) {
-        // Groq siempre devuelve transcripciones completas (isFinal = true)
-        this.transcriptCallback(text, true, 1.0); // confidence = 1.0
-      }
-
-    } catch (error) {
-      // LOGGING EXPLÍCITO - Siempre se verá
-      console.error('=================================');
-      console.error('ERROR EN GROQ STT');
-      console.error('Session:', this.sessionId);
-      console.error('Error Message:', error.message);
-      console.error('Error Name:', error.name);
-      console.error('Error Status:', error.status || 'N/A');
-      console.error('Error Code:', error.code || 'N/A');
-      console.error('Full Error:', JSON.stringify(error, null, 2));
-      console.error('=================================');
-      
-      // También con logger (por si console no se ve)
-      logger.error({
-        sessionId: this.sessionId,
-        errorMessage: error.message,
-        errorName: error.name,
-        errorStatus: error.status,
-        errorCode: error.code,
+        errorMessage,
+        errorName: error?.name || 'Error',
+        errorStatus: error?.status || 'N/A',
         errorType: typeof error,
         audioBufferLength: this.audioBuffer.length,
-      }, `GROQ ERROR: ${error.message}`);
-      
-      // Si es error de archivo muy pequeño, ignorar silenciosamente
-      if (error.message?.includes('too small') || 
-          error.message?.includes('minimum') ||
-          error.message?.includes('duration') ||
-          error.message?.includes('Invalid')) {
-        logAudio('audio_chunk_ignored', { 
-          sessionId: this.sessionId,
-          reason: error.message 
-        });
-        return;
-      }
-
-      if (this.errorCallback) {
-        this.errorCallback(error);
-      }
-    }
+      },
+      `GROQ ERROR: ${errorMessage}`
+    );
   }
+}
+
 
   async sendAudio(audioBuffer) {
     if (!this.isActive) {
