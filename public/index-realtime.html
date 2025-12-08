@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>ZIM - Agente de Voz Realtime</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1f2937 0, #020617 55%);
+      color: #e5e7eb;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 800px;
+      width: 100%;
+      background: rgba(15, 23, 42, 0.96);
+      border-radius: 1.5rem;
+      padding: 2rem;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.9);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .header h1 {
+      margin: 0 0 0.5rem;
+      font-size: 2rem;
+      background: linear-gradient(135deg, #facc15 0%, #f97316 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header p {
+      margin: 0;
+      color: #9ca3af;
+      font-size: 0.9rem;
+    }
+
+    .status-card {
+      background: rgba(6, 78, 59, 0.2);
+      border: 1px solid rgba(52, 211, 153, 0.6);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .status-card.disconnected {
+      background: rgba(127, 29, 29, 0.2);
+      border-color: rgba(239, 68, 68, 0.6);
+    }
+
+    .status-card h3 {
+      margin: 0 0 1rem;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #9ca3af;
+    }
+
+    .status-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 10px #22c55e;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .status-card.disconnected .status-dot {
+      background: #ef4444;
+      box-shadow: 0 0 10px #ef4444;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .input-group label {
+      font-size: 0.85rem;
+      color: #9ca3af;
+    }
+
+    .input-group input {
+      background: #020617;
+      color: #e5e7eb;
+      border: 1px solid #4b5563;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      font-size: 1rem;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 0.75rem;
+      padding: 1rem 2rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+      color: #0b1120;
+      box-shadow: 0 10px 25px rgba(34, 197, 94, 0.4);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 35px rgba(34, 197, 94, 0.5);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: #fee2e2;
+      box-shadow: 0 10px 25px rgba(239, 68, 68, 0.4);
+    }
+
+    .btn-danger:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 35px rgba(239, 68, 68, 0.5);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .conversation {
+      background: rgba(3, 7, 18, 0.6);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      min-height: 300px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .message {
+      margin-bottom: 1rem;
+      padding: 1rem;
+      border-radius: 0.75rem;
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user {
+      background: rgba(37, 99, 235, 0.15);
+      border-left: 3px solid #3b82f6;
+    }
+
+    .message.assistant {
+      background: rgba(34, 197, 94, 0.15);
+      border-left: 3px solid #22c55e;
+    }
+
+    .message.system {
+      background: rgba(168, 85, 247, 0.15);
+      border-left: 3px solid #a855f7;
+      font-size: 0.9rem;
+      font-style: italic;
+    }
+
+    .message-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #9ca3af;
+      margin-bottom: 0.5rem;
+    }
+
+    .message-content {
+      color: #e5e7eb;
+      line-height: 1.5;
+    }
+
+    .logs {
+      background: rgba(3, 7, 18, 0.6);
+      border-radius: 1rem;
+      padding: 1rem;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+    }
+
+    .log-entry {
+      padding: 0.25rem 0;
+      color: #9ca3af;
+      border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+    }
+
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+
+    .log-entry.error {
+      color: #ef4444;
+    }
+
+    .log-entry.success {
+      color: #22c55e;
+    }
+
+    .log-timestamp {
+      color: #6b7280;
+      margin-right: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>🎙️ ZIM Voice Agent</h1>
+      <p>Modo Realtime - Streaming Bidireccional</p>
+    </div>
+
+    <!-- Status Card -->
+    <div class="status-card" id="statusCard">
+      <h3>Estado de Conexión</h3>
+      <div class="status-info">
+        <div class="status-dot"></div>
+        <span id="statusText">Desconectado</span>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="input-group">
+        <label for="clientName">Nombre del Cliente</label>
+        <input type="text" id="clientName" placeholder="Ej: Iván López" value="Pepe Leches">
+      </div>
+
+      <button class="btn btn-primary" id="btnConnect">
+        <span>🔌</span>
+        <span>Conectar</span>
+      </button>
+    </div>
+
+    <!-- Conversation -->
+    <div class="conversation" id="conversation">
+      <div class="message system">
+        <div class="message-label">Sistema</div>
+        <div class="message-content">Pulsa "Conectar" para iniciar la conversación con el agente.</div>
+      </div>
+    </div>
+
+    <!-- Logs -->
+    <details>
+      <summary style="cursor: pointer; color: #9ca3af; margin-bottom: 1rem;">
+        📋 Ver Logs (Debug)
+      </summary>
+      <div class="logs" id="logs"></div>
+    </details>
+  </div>
+
+  <script>
+    // ========================================
+    // VARIABLES GLOBALES
+    // ========================================
+    let ws = null;
+    let audioStream = null;
+    let mediaRecorder = null;
+    let audioContext = null;
+    let isConnected = false;
+    let isRecording = false;
+
+    const btnConnect = document.getElementById('btnConnect');
+    const statusCard = document.getElementById('statusCard');
+    const statusText = document.getElementById('statusText');
+    const conversation = document.getElementById('conversation');
+    const logs = document.getElementById('logs');
+    const clientNameInput = document.getElementById('clientName');
+
+    // ========================================
+    // LOGGING
+    // ========================================
+    function addLog(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const logEntry = document.createElement('div');
+      logEntry.className = `log-entry ${type}`;
+      logEntry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span>${message}`;
+      logs.appendChild(logEntry);
+      logs.scrollTop = logs.scrollHeight;
+      console.log(`[${timestamp}] ${message}`);
+    }
+
+    function addMessage(role, content) {
+      const message = document.createElement('div');
+      message.className = `message ${role}`;
+      
+      const label = document.createElement('div');
+      label.className = 'message-label';
+      label.textContent = role === 'user' ? 'Usuario' : role === 'assistant' ? 'Agente' : 'Sistema';
+      
+      const messageContent = document.createElement('div');
+      messageContent.className = 'message-content';
+      messageContent.textContent = content;
+      
+      message.appendChild(label);
+      message.appendChild(messageContent);
+      conversation.appendChild(message);
+      conversation.scrollTop = conversation.scrollHeight;
+    }
+
+    // ========================================
+    // WEBSOCKET CONNECTION
+    // ========================================
+    async function connectWebSocket() {
+      try {
+        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+        const wsUrl = 'wss://voice-agent-n8j7l9-9f812b-192-168-30-43.traefik.me/v2/voice';
+        
+        addLog(`Conectando a: ${wsUrl}`, 'info');
+        
+        ws = new WebSocket(wsUrl);
+        ws.binaryType = 'arraybuffer';
+
+        ws.onopen = () => {
+          addLog('WebSocket conectado ✓', 'success');
+          updateStatus('connected');
+          
+          // Enviar inicialización
+          const initMessage = {
+            type: 'init',
+            metadata: {
+              clientName: clientNameInput.value || 'Cliente'
+            }
+          };
+          
+          addLog('Enviando inicialización...', 'info');
+          ws.send(JSON.stringify(initMessage));
+        };
+
+        ws.onmessage = async (event) => {
+          if (typeof event.data === 'string') {
+            // Mensaje JSON (eventos)
+            const message = JSON.parse(event.data);
+            handleServerEvent(message);
+          } else {
+            // Mensaje binario (audio)
+            handleServerAudio(event.data);
+          }
+        };
+
+        ws.onerror = (error) => {
+          addLog(`Error en WebSocket: ${error}`, 'error');
+          console.error('WebSocket error:', error);
+        };
+
+        ws.onclose = () => {
+          addLog('WebSocket cerrado', 'error');
+          updateStatus('disconnected');
+          cleanup();
+        };
+
+      } catch (error) {
+        addLog(`Error conectando: ${error.message}`, 'error');
+        updateStatus('disconnected');
+      }
+    }
+
+    // ========================================
+    // MANEJO DE EVENTOS DEL SERVIDOR
+    // ========================================
+    function handleServerEvent(message) {
+      const { type, event, data, error: errorMsg } = message;
+
+      if (type === 'error') {
+        addLog(`❌ Error: ${errorMsg}`, 'error');
+        addMessage('system', `Error: ${errorMsg}`);
+        return;
+      }
+
+      if (type === 'event') {
+        switch (event) {
+          case 'ready':
+            addLog('✓ Sesión lista', 'success');
+            addMessage('system', 'Sesión iniciada. Comienza a hablar...');
+            startRecording();
+            break;
+
+          case 'transcript_partial':
+            addLog(`🎤 Parcial: "${data.text}"`, 'info');
+            break;
+
+          case 'transcript_final':
+            addLog(`🎤 Final: "${data.text}"`, 'success');
+            addMessage('user', data.text);
+            break;
+
+          case 'llm_chunk':
+            // Acumular chunks del LLM (podrías mostrarlos en tiempo real)
+            addLog(`🤖 LLM: "${data.chunk}"`, 'info');
+            break;
+
+          case 'agent_finished_speaking':
+            addLog('✓ Agente terminó de hablar', 'success');
+            break;
+
+          case 'interruption_processed':
+            addLog('⚠️ Interrupción procesada', 'info');
+            break;
+
+          default:
+            addLog(`Evento: ${event}`, 'info');
+        }
+      }
+    }
+
+    // ========================================
+    // MANEJO DE AUDIO DEL SERVIDOR
+    // ========================================
+    let currentAssistantMessage = '';
+
+    function handleServerAudio(audioData) {
+      try {
+        // Reproducir audio recibido
+        const audioBlob = new Blob([audioData], { type: 'audio/mpeg' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        
+        audio.play().then(() => {
+          addLog('🔊 Reproduciendo respuesta del agente', 'success');
+        }).catch(err => {
+          addLog(`Error reproduciendo audio: ${err}`, 'error');
+        });
+
+        // Limpiar URL después de reproducir
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+        };
+
+      } catch (error) {
+        addLog(`Error procesando audio: ${error.message}`, 'error');
+      }
+    }
+
+    // ========================================
+    // GRABACIÓN DE AUDIO
+    // ========================================
+    async function startRecording() {
+      try {
+        addLog('Solicitando permiso de micrófono...', 'info');
+        
+        audioStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+
+        addLog('✓ Permiso concedido', 'success');
+
+        mediaRecorder = new MediaRecorder(audioStream, {
+          mimeType: 'audio/webm'
+        });
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0 && ws && ws.readyState === WebSocket.OPEN) {
+            // Enviar chunk de audio al servidor
+            event.data.arrayBuffer().then(buffer => {
+              ws.send(buffer);
+              addLog(`📤 Audio enviado: ${buffer.byteLength} bytes`, 'info');
+            });
+          }
+        };
+
+        mediaRecorder.onstart = () => {
+          addLog('🎙️ Grabación iniciada', 'success');
+          isRecording = true;
+        };
+
+        mediaRecorder.onstop = () => {
+          addLog('🎙️ Grabación detenida', 'info');
+          isRecording = false;
+        };
+
+        // Iniciar grabación con chunks de 100ms
+        mediaRecorder.start(100);
+
+      } catch (error) {
+        addLog(`❌ Error iniciando grabación: ${error.message}`, 'error');
+      }
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+      
+      if (audioStream) {
+        audioStream.getTracks().forEach(track => track.stop());
+        audioStream = null;
+      }
+    }
+
+    // ========================================
+    // UI UPDATES
+    // ========================================
+    function updateStatus(status) {
+      if (status === 'connected') {
+        statusCard.classList.remove('disconnected');
+        statusText.textContent = 'Conectado - Listo para conversar';
+        btnConnect.classList.remove('btn-primary');
+        btnConnect.classList.add('btn-danger');
+        btnConnect.innerHTML = '<span>❌</span><span>Desconectar</span>';
+        isConnected = true;
+      } else {
+        statusCard.classList.add('disconnected');
+        statusText.textContent = 'Desconectado';
+        btnConnect.classList.remove('btn-danger');
+        btnConnect.classList.add('btn-primary');
+        btnConnect.innerHTML = '<span>🔌</span><span>Conectar</span>';
+        isConnected = false;
+      }
+    }
+
+    // ========================================
+    // CLEANUP
+    // ========================================
+    function cleanup() {
+      stopRecording();
+      
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+      
+      isConnected = false;
+      isRecording = false;
+    }
+
+    // ========================================
+    // EVENT LISTENERS
+    // ========================================
+    btnConnect.onclick = () => {
+      if (isConnected) {
+        addLog('Desconectando...', 'info');
+        cleanup();
+        updateStatus('disconnected');
+      } else {
+        connectWebSocket();
+      }
+    };
+
+    // Cleanup al cerrar la página
+    window.addEventListener('beforeunload', cleanup);
+
+    // ========================================
+    // INICIALIZACIÓN
+    // ========================================
+    addLog('Aplicación cargada. Lista para conectar.', 'success');
+  </script>
+</body>
+</html>
