@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>ZIM - Agendamiento de Instalaciones</title>
+  <title>ZIM - Agente de Voz Realtime</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     :root { color-scheme: dark; }
@@ -11,813 +11,590 @@
     body {
       margin: 0;
       min-height: 100vh;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-        sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: radial-gradient(circle at top, #1f2937 0, #020617 55%);
       color: #e5e7eb;
       display: flex;
       justify-content: center;
-      align-items: stretch;
+      align-items: center;
+      padding: 2rem;
     }
 
-    .app {
+    .container {
+      max-width: 800px;
       width: 100%;
-      max-width: 1180px;
-      padding: 1.5rem 1.25rem 2rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1.25rem;
-    }
-
-    /* Top bar */
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-    .brand img {
-      height: 48px;
-      width: auto;
-    }
-    .brand-title {
-      display: flex;
-      flex-direction: column;
-      gap: 0.15rem;
-    }
-    .brand-title h1 {
-      margin: 0;
-      font-size: 1.4rem;
-      letter-spacing: 0.02em;
-    }
-    .brand-title span {
-      font-size: 0.78rem;
-      color: #9ca3af;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-    }
-    .topbar-right {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 0.2rem;
-      font-size: 0.82rem;
-      color: #9ca3af;
-    }
-
-    /* Layout principal */
-    .main-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-      gap: 1.25rem;
-    }
-    @media (max-width: 980px) {
-      .main-grid {
-        grid-template-columns: minmax(0, 1fr);
-      }
-    }
-
-    .card {
       background: rgba(15, 23, 42, 0.96);
-      border-radius: 1.1rem;
-      padding: 1.1rem 1.1rem 1.2rem;
+      border-radius: 1.5rem;
+      padding: 2rem;
       border: 1px solid rgba(148, 163, 184, 0.22);
-      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.85);
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.9);
     }
-    .card h2 {
-      margin: 0 0 0.85rem;
-      font-size: 0.95rem;
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
+
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .header h1 {
+      margin: 0 0 0.5rem;
+      font-size: 2rem;
+      background: linear-gradient(135deg, #facc15 0%, #f97316 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header p {
+      margin: 0;
       color: #9ca3af;
-    }
-
-    /* Panel de llamada (lado izquierdo) */
-    .call-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-      gap: 0.75rem;
-    }
-    .agent-info {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-    .agent-avatar {
-      width: 54px;
-      height: 54px;
-      border-radius: 999px;
-      background: radial-gradient(circle at 30% 20%, #facc15 0, #f97316 35%, #7c2d12 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 1.1rem;
-      color: #0b1120;
-      box-shadow: 0 10px 25px rgba(251, 191, 36, 0.5);
-    }
-    .agent-text {
-      display: flex;
-      flex-direction: column;
-      gap: 0.15rem;
-    }
-    .agent-text span:first-child {
-      font-size: 0.85rem;
-      color: #9ca3af;
-    }
-    .agent-text strong {
-      font-size: 1.05rem;
-    }
-
-    .call-status-pill {
-      padding: 0.2rem 0.7rem;
-      border-radius: 999px;
-      border: 1px solid rgba(52, 211, 153, 0.6);
-      font-size: 0.78rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      background: rgba(6, 78, 59, 0.2);
-      color: #6ee7b7;
-    }
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 999px;
-      background: #22c55e;
-      box-shadow: 0 0 10px #22c55e;
-    }
-    .call-status-pill.idle {
-      border-color: rgba(148, 163, 184, 0.6);
-      background: rgba(15, 23, 42, 0.7);
-      color: #9ca3af;
-    }
-    .call-status-pill.idle .status-dot {
-      background: #9ca3af;
-      box-shadow: none;
-    }
-    .call-status-pill.ringing {
-      border-color: rgba(59, 130, 246, 0.75);
-      background: rgba(15, 23, 42, 0.8);
-      color: #93c5fd;
-    }
-    .call-status-pill.ringing .status-dot {
-      background: #3b82f6;
-      box-shadow: 0 0 10px #3b82f6;
-    }
-
-    .call-body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    /* Botón de llamada */
-    #btnToggle {
-      border: none;
-      border-radius: 999px;
-      padding: 0.75rem 2.2rem;
-      font-size: 1.05rem;
-      cursor: pointer;
-      background: radial-gradient(circle at top left, #22c55e 0, #16a34a 55%, #166534 100%);
-      color: #0b1120;
-      font-weight: 600;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.55rem;
-      box-shadow: 0 12px 30px rgba(34, 197, 94, 0.45);
-      transition: transform 0.08s ease-out, box-shadow 0.08s ease-out,
-        background 0.15s ease-out;
-    }
-    #btnToggle:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 16px 38px rgba(34, 197, 94, 0.55);
-    }
-    #btnToggle.recording {
-      background: radial-gradient(circle at top left, #ef4444 0, #b91c1c 55%, #7f1d1d 100%);
-      box-shadow: 0 12px 30px rgba(239, 68, 68, 0.6);
-      color: #fee2e2;
-    }
-    #btnToggle span.icon {
-      width: 26px;
-      height: 26px;
-      border-radius: 999px;
-      border: 2px solid currentColor;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.95rem;
-    }
-
-    /* Burbujas de texto */
-    .conversation {
-      width: 100%;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 0.75rem;
-      margin-top: 0.75rem;
-    }
-    @media (max-width: 680px) {
-      .conversation {
-        grid-template-columns: minmax(0, 1fr);
-      }
-    }
-    .bubble-block-title {
-      font-size: 0.8rem;
-      color: #9ca3af;
-      margin-bottom: 0.2rem;
-    }
-    .bubble {
-      border-radius: 0.9rem;
-      padding: 0.7rem 0.9rem;
-      background: rgba(15, 23, 42, 0.95);
-      border: 1px solid rgba(75, 85, 99, 0.8);
-      min-height: 2.3rem;
-      font-size: 0.95rem;
-      white-space: pre-wrap;
-      color: #e5e7eb;
-    }
-    .bubble.user {
-      border-color: rgba(96, 165, 250, 0.95);
-      background: rgba(15, 23, 42, 0.98);
-    }
-    .bubble.agent {
-      border-color: rgba(52, 211, 153, 0.9);
-      background: rgba(6, 78, 59, 0.24);
-    }
-
-    /* Panel lateral (config + logs) */
-    .config-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.6rem;
-      margin-bottom: 0.9rem;
-    }
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 0.3rem;
-      font-size: 0.85rem;
-    }
-    .field label {
-      color: #9ca3af;
-    }
-    .field input,
-    .field select {
-      background: #020617;
-      color: #e5e7eb;
-      border-radius: 0.6rem;
-      border: 1px solid #4b5563;
-      padding: 0.45rem 0.55rem;
       font-size: 0.9rem;
     }
-    .hint {
-      font-size: 0.8rem;
+
+    .status-card {
+      background: rgba(6, 78, 59, 0.2);
+      border: 1px solid rgba(52, 211, 153, 0.6);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .status-card.disconnected {
+      background: rgba(127, 29, 29, 0.2);
+      border-color: rgba(239, 68, 68, 0.6);
+    }
+
+    .status-card h3 {
+      margin: 0 0 1rem;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
       color: #9ca3af;
     }
 
-    /* Logs */
-    .logs-toggle {
-      display: inline-flex;
+    .status-info {
+      display: flex;
       align-items: center;
-      gap: 0.35rem;
-      font-size: 0.8rem;
+      gap: 0.75rem;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 10px #22c55e;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .status-card.disconnected .status-dot {
+      background: #ef4444;
+      box-shadow: 0 0 10px #ef4444;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .input-group label {
+      font-size: 0.85rem;
       color: #9ca3af;
-      cursor: pointer;
-      margin-top: 0.4rem;
     }
-    .logs-toggle span.chevron {
-      transition: transform 0.15s ease-out;
-    }
-    .logs-toggle.open span.chevron {
-      transform: rotate(90deg);
-    }
-    #log-container {
-      margin-top: 0.45rem;
-      display: none;
-    }
-    #log {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-        "Liberation Mono", "Courier New", monospace;
-      font-size: 0.8rem;
+
+    .input-group input {
       background: #020617;
-      border-radius: 0.6rem;
-      padding: 0.7rem;
-      border: 1px solid rgba(55, 65, 81, 0.9);
-      height: 230px;
+      color: #e5e7eb;
+      border: 1px solid #4b5563;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      font-size: 1rem;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 0.75rem;
+      padding: 1rem 2rem;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+      color: #0b1120;
+      box-shadow: 0 10px 25px rgba(34, 197, 94, 0.4);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 35px rgba(34, 197, 94, 0.5);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: #fee2e2;
+      box-shadow: 0 10px 25px rgba(239, 68, 68, 0.4);
+    }
+
+    .btn-danger:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 35px rgba(239, 68, 68, 0.5);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .conversation {
+      background: rgba(3, 7, 18, 0.6);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      min-height: 300px;
+      max-height: 400px;
       overflow-y: auto;
-      white-space: pre-wrap;
+    }
+
+    .message {
+      margin-bottom: 1rem;
+      padding: 1rem;
+      border-radius: 0.75rem;
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user {
+      background: rgba(37, 99, 235, 0.15);
+      border-left: 3px solid #3b82f6;
+    }
+
+    .message.assistant {
+      background: rgba(34, 197, 94, 0.15);
+      border-left: 3px solid #22c55e;
+    }
+
+    .message.system {
+      background: rgba(168, 85, 247, 0.15);
+      border-left: 3px solid #a855f7;
+      font-size: 0.9rem;
+      font-style: italic;
+    }
+
+    .message-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
       color: #9ca3af;
+      margin-bottom: 0.5rem;
+    }
+
+    .message-content {
+      color: #e5e7eb;
+      line-height: 1.5;
+    }
+
+    .logs {
+      background: rgba(3, 7, 18, 0.6);
+      border-radius: 1rem;
+      padding: 1rem;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+    }
+
+    .log-entry {
+      padding: 0.25rem 0;
+      color: #9ca3af;
+      border-bottom: 1px solid rgba(75, 85, 99, 0.3);
+    }
+
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+
+    .log-entry.error {
+      color: #ef4444;
+    }
+
+    .log-entry.success {
+      color: #22c55e;
+    }
+
+    .log-timestamp {
+      color: #6b7280;
+      margin-right: 0.5rem;
     }
   </style>
 </head>
 <body>
-  <div class="app">
-    <div class="topbar">
-      <div class="brand">
-        <img src="zim-logo.png" alt="ZIM" />
-        <div class="brand-title">
-          <span>Plataforma ZIM</span>
-          <h1>Agendamiento de Instalaciones</h1>
-        </div>
-      </div>
-      <div class="topbar-right">
-        <div id="topClientName">Cliente demo: (sin nombre)</div>
-        <div id="topTts">Motor de voz: OpenAI TTS</div>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>🎙️ ZIM Voice Agent</h1>
+      <p>Modo Realtime - Streaming Bidireccional</p>
+    </div>
+
+    <!-- Status Card -->
+    <div class="status-card" id="statusCard">
+      <h3>Estado de Conexión</h3>
+      <div class="status-info">
+        <div class="status-dot"></div>
+        <span id="statusText">Desconectado</span>
       </div>
     </div>
 
-    <div class="main-grid">
-      <!-- Panel de llamada -->
-      <section class="card">
-        <h2>Llamada simulada</h2>
+    <!-- Controls -->
+    <div class="controls">
+      <div class="input-group">
+        <label for="clientName">Nombre del Cliente</label>
+        <input type="text" id="clientName" placeholder="Ej: Iván López" value="Pepe Leches">
+      </div>
 
-        <div class="call-header">
-          <div class="agent-info">
-            <div class="agent-avatar">Z</div>
-            <div class="agent-text">
-              <span>Agente comercial · Zener para Vodafone</span>
-              <strong>Agente virtual de agendamiento</strong>
-            </div>
-          </div>
-          <div id="callStatus" class="call-status-pill idle">
-            <span class="status-dot"></span>
-            <span id="callStatusText">Listo para llamar</span>
-          </div>
-        </div>
-
-        <div class="call-body">
-          <button id="btnToggle">
-            <span class="icon">📞</span>
-            <span>Iniciar llamada</span>
-          </button>
-
-          <div class="conversation">
-            <div>
-              <div class="bubble-block-title">Tú dijiste</div>
-              <div class="bubble user" id="userText">
-                Pulsa “Iniciar llamada”, espera a los tonos de establecimiento y habla como si fueses el cliente.
-              </div>
-            </div>
-            <div>
-              <div class="bubble-block-title">El agente responde</div>
-              <div class="bubble agent" id="agentText">
-                Aquí aparecerán las respuestas del agente de Zener en nombre de Vodafone durante la llamada.
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Panel lateral: config + logs -->
-      <section class="card">
-        <h2>Panel de demo</h2>
-
-        <div class="config-group">
-          <div class="field">
-            <label for="clientName">Nombre del cliente (para la demo)</label>
-            <input id="clientName" type="text" placeholder="Ej: Iván Fernández" />
-            <div class="hint">
-              Solo visual: se muestra en la cabecera y se usa en el saludo inicial del agente.
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="ttsProvider">Motor de voz</label>
-            <select id="ttsProvider">
-              <option value="openai">OpenAI TTS</option>
-              <option value="elevenlabs">ElevenLabs TTS</option>
-            </select>
-            <div class="hint">
-              Cambia el motor de voz en caliente. El flujo de IA es el mismo, solo cambia quién sintetiza la voz.
-            </div>
-          </div>
-        </div>
-
-        <div class="hint">
-          <strong>Cómo usar la demo:</strong><br />
-          1) Escribe un nombre de cliente (opcional).<br />
-          2) Elige el motor de voz.<br />
-          3) Pulsa <em>Iniciar llamada</em>, escucha los tonos de establecimiento (solo la primera vez) y habla como si fueses el cliente
-          al otro lado del teléfono. No hace falta pulsar más: el agente detecta las pausas y te contesta.
-        </div>
-
-        <div class="logs-toggle" id="logsToggle">
-          <span class="chevron">▶</span>
-          <span>Ver detalles técnicos (logs)</span>
-        </div>
-        <div id="log-container">
-          <pre id="log"></pre>
-        </div>
-      </section>
+      <button class="btn btn-primary" id="btnConnect">
+        <span>🔌</span>
+        <span>Conectar</span>
+      </button>
     </div>
+
+    <!-- Conversation -->
+    <div class="conversation" id="conversation">
+      <div class="message system">
+        <div class="message-label">Sistema</div>
+        <div class="message-content">Pulsa "Conectar" para iniciar la conversación con el agente.</div>
+      </div>
+    </div>
+
+    <!-- Logs -->
+    <details>
+      <summary style="cursor: pointer; color: #9ca3af; margin-bottom: 1rem;">
+        📋 Ver Logs (Debug)
+      </summary>
+      <div class="logs" id="logs"></div>
+    </details>
   </div>
 
   <script>
-    const btn = document.getElementById('btnToggle');
-    const logEl = document.getElementById('log');
-    const userTextEl = document.getElementById('userText');
-    const agentTextEl = document.getElementById('agentText');
-    const callStatusEl = document.getElementById('callStatus');
-    const callStatusTextEl = document.getElementById('callStatusText');
+    // ========================================
+    // VARIABLES GLOBALES
+    // ========================================
+    let ws = null;
+    let audioStream = null;
+    let mediaRecorder = null;
+    let audioContext = null;
+    let isConnected = false;
+    let isRecording = false;
+
+    const btnConnect = document.getElementById('btnConnect');
+    const statusCard = document.getElementById('statusCard');
+    const statusText = document.getElementById('statusText');
+    const conversation = document.getElementById('conversation');
+    const logs = document.getElementById('logs');
     const clientNameInput = document.getElementById('clientName');
-    const topClientNameEl = document.getElementById('topClientName');
-    const ttsSelect = document.getElementById('ttsProvider');
-    const topTtsEl = document.getElementById('topTts');
-    const logsToggle = document.getElementById('logsToggle');
-    const logContainer = document.getElementById('log-container');
 
-    let mediaRecorder;
-    let audioStream;
-    let socket;
-    let isCallActive = false;
-    let ringInterval = null;
-    let hasRungOnce = false; // tonos solo primera vez
-
-    // Historial de conversación para mandar al backend
-    let conversationHistory = [];
-
-    // Detección de “frases” por pausas
-    let currentUtteranceChunks = [];
-    let utteranceHasSpeech = false;
-    let utteranceDurationMs = 0;
-    let lastVoiceTs = 0;
-
-    const TIMESLICE_MS = 200;               // chunk cada 200ms
-    const SILENCE_THRESHOLD_BYTES = 1500;   // por debajo: casi silencio
-    const END_OF_UTTERANCE_SILENCE_MS = 800; // 0.8s de silencio => fin frase
-    const MAX_UTTERANCE_MS = 7000;          // máximo 7s por frase
-
-    function addLog(msg) {
-      logEl.textContent += msg + '\n';
-      logEl.scrollTop = logEl.scrollHeight;
-      console.log(msg);
+    // ========================================
+    // LOGGING
+    // ========================================
+    function addLog(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const logEntry = document.createElement('div');
+      logEntry.className = `log-entry ${type}`;
+      logEntry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span>${message}`;
+      logs.appendChild(logEntry);
+      logs.scrollTop = logs.scrollHeight;
+      console.log(`[${timestamp}] ${message}`);
     }
 
-    // Actualizar cabecera con nombre y TTS
-    clientNameInput.addEventListener('input', () => {
-      const name = clientNameInput.value.trim();
-      topClientNameEl.textContent = name
-        ? 'Cliente demo: ' + name
-        : 'Cliente demo: (sin nombre)';
-    });
-
-    ttsSelect.addEventListener('change', () => {
-      const label =
-        ttsSelect.value === 'elevenlabs'
-          ? 'ElevenLabs TTS'
-          : 'OpenAI TTS';
-      topTtsEl.textContent = 'Motor de voz: ' + label;
-    });
-
-    // Mostrar/ocultar logs
-    logsToggle.addEventListener('click', () => {
-      const open = logContainer.style.display === 'block';
-      logContainer.style.display = open ? 'none' : 'block';
-      logsToggle.classList.toggle('open', !open);
-    });
-
-    // Gestión de estados visuales de la llamada
-    function setCallStatus(mode) {
-      callStatusEl.classList.remove('idle', 'ringing');
-      if (mode === 'ringing') {
-        callStatusEl.classList.add('ringing');
-        callStatusTextEl.textContent = 'Llamando al agente...';
-      } else if (mode === 'active') {
-        callStatusTextEl.textContent = 'En llamada';
-      } else {
-        callStatusEl.classList.add('idle');
-        callStatusTextEl.textContent = 'Listo para llamar';
-      }
+    function addMessage(role, content) {
+      const message = document.createElement('div');
+      message.className = `message ${role}`;
+      
+      const label = document.createElement('div');
+      label.className = 'message-label';
+      label.textContent = role === 'user' ? 'Usuario' : role === 'assistant' ? 'Agente' : 'Sistema';
+      
+      const messageContent = document.createElement('div');
+      messageContent.className = 'message-content';
+      messageContent.textContent = content;
+      
+      message.appendChild(label);
+      message.appendChild(messageContent);
+      conversation.appendChild(message);
+      conversation.scrollTop = conversation.scrollHeight;
     }
 
-    // Simular tonos de establecimiento (ring)
-    function startRingTone() {
-      stopRingTone();
+    // ========================================
+    // WEBSOCKET CONNECTION
+    // ========================================
+    async function connectWebSocket() {
       try {
-        const AudioContext =
-          window.AudioContext || window.webkitAudioContext;
-        const ctx = new AudioContext();
+        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+        const wsUrl = 'wss://voice-agent-n8j7l9-9f812b-192-168-30-43.traefik.me/v2/voice';
+        
+        addLog(`Conectando a: ${wsUrl}`, 'info');
+        
+        ws = new WebSocket(wsUrl);
+        ws.binaryType = 'arraybuffer';
 
-        function playBeep() {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.value = 440;
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-          gain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.05);
-          gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.9);
-          osc.start();
-          osc.stop(ctx.currentTime + 1.0);
-        }
+        ws.onopen = () => {
+          addLog('WebSocket conectado ✓', 'success');
+          updateStatus('connected');
+          
+          // Enviar inicialización
+          const initMessage = {
+            type: 'init',
+            metadata: {
+              clientName: clientNameInput.value || 'Cliente'
+            }
+          };
+          
+          addLog('Enviando inicialización...', 'info');
+          ws.send(JSON.stringify(initMessage));
+        };
 
-        playBeep();
-        ringInterval = setInterval(playBeep, 1600);
-        ringInterval._audioCtx = ctx;
-      } catch (e) {
-        addLog('No se ha podido iniciar el tono de llamada: ' + e.message);
-      }
-    }
-
-    function stopRingTone() {
-      if (ringInterval) {
-        clearInterval(ringInterval);
-        if (ringInterval._audioCtx) {
-          try {
-            ringInterval._audioCtx.close();
-          } catch {}
-        }
-        ringInterval = null;
-      }
-    }
-
-    // ---- Enviar una “frase” completa a /stt ----
-    async function sendUtteranceToStt(blob) {
-      try {
-        if (!blob || blob.size === 0) return;
-        addLog('Frase detectada, tamaño total: ' + blob.size);
-
-        const formData = new FormData();
-        formData.append('audio', blob, 'grabacion.webm');
-
-        // Motor de voz
-        const ttsProvider = ttsSelect ? ttsSelect.value : 'openai';
-        formData.append('ttsProvider', ttsProvider);
-
-        // Nombre del cliente
-        const clientName = clientNameInput ? clientNameInput.value : '';
-        formData.append('clientName', clientName);
-
-        // Historial
-        formData.append('history', JSON.stringify(conversationHistory));
-
-        addLog('Enviando frase a /stt...');
-        const resp = await fetch('/stt', {
-          method: 'POST',
-          body: formData
-        });
-
-        if (!resp.ok) {
-          const errText = await resp.text();
-          addLog('Error STT HTTP: ' + resp.status + ' - ' + errText);
-          return;
-        }
-
-        const data = await resp.json();
-
-        if (data.transcript) {
-          userTextEl.textContent = data.transcript;
-          conversationHistory.push({
-            role: 'user',
-            content: data.transcript
-          });
-        } else {
-          userTextEl.textContent = '(no se ha entendido nada claro)';
-        }
-
-        if (data.answer) {
-          agentTextEl.textContent = data.answer;
-          conversationHistory.push({
-            role: 'assistant',
-            content: data.answer
-          });
-        }
-
-        if (conversationHistory.length > 10) {
-          conversationHistory = conversationHistory.slice(
-            conversationHistory.length - 10
-          );
-        }
-
-        addLog('Transcripción: ' + (data.transcript || ''));
-        addLog('Respuesta IA (texto): ' + (data.answer || ''));
-
-        if (data.audio) {
-          try {
-            addLog('Reproduciendo audio de respuesta...');
-            const audioBytes = Uint8Array.from(
-              atob(data.audio),
-              (c) => c.charCodeAt(0)
-            );
-            const audioBlob = new Blob([audioBytes], {
-              type: 'audio/mpeg'
-            });
-            const url = URL.createObjectURL(audioBlob);
-            const audio = new Audio(url);
-            audio.play();
-          } catch (e) {
-            addLog('Error reproduciendo audio: ' + e.message);
+        ws.onmessage = async (event) => {
+          if (typeof event.data === 'string') {
+            // Mensaje JSON (eventos)
+            const message = JSON.parse(event.data);
+            handleServerEvent(message);
+          } else {
+            // Mensaje binario (audio)
+            handleServerAudio(event.data);
           }
-        }
-      } catch (err) {
-        addLog('Error llamando a /stt: ' + err.message);
+        };
+
+        ws.onerror = (error) => {
+          addLog(`Error en WebSocket: ${error}`, 'error');
+          console.error('WebSocket error:', error);
+        };
+
+        ws.onclose = () => {
+          addLog('WebSocket cerrado', 'error');
+          updateStatus('disconnected');
+          cleanup();
+        };
+
+      } catch (error) {
+        addLog(`Error conectando: ${error.message}`, 'error');
+        updateStatus('disconnected');
       }
     }
 
-    // ---- Iniciar llamada (mic abierto, detección de pausas) ----
-    async function startCall() {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        addLog(
-          'ERROR: getUserMedia NO disponible (necesitas HTTPS o localhost).'
-        );
+    // ========================================
+    // MANEJO DE EVENTOS DEL SERVIDOR
+    // ========================================
+    function handleServerEvent(message) {
+      const { type, event, data, error: errorMsg } = message;
+
+      if (type === 'error') {
+        addLog(`❌ Error: ${errorMsg}`, 'error');
+        addMessage('system', `Error: ${errorMsg}`);
         return;
       }
 
+      if (type === 'event') {
+        switch (event) {
+          case 'ready':
+            addLog('✓ Sesión lista', 'success');
+            addMessage('system', 'Sesión iniciada. Comienza a hablar...');
+            startRecording();
+            break;
+
+          case 'transcript_partial':
+            addLog(`🎤 Parcial: "${data.text}"`, 'info');
+            break;
+
+          case 'transcript_final':
+            addLog(`🎤 Final: "${data.text}"`, 'success');
+            addMessage('user', data.text);
+            break;
+
+          case 'llm_chunk':
+            // Acumular chunks del LLM (podrías mostrarlos en tiempo real)
+            addLog(`🤖 LLM: "${data.chunk}"`, 'info');
+            break;
+
+          case 'agent_finished_speaking':
+            addLog('✓ Agente terminó de hablar', 'success');
+            break;
+
+          case 'interruption_processed':
+            addLog('⚠️ Interrupción procesada', 'info');
+            break;
+
+          default:
+            addLog(`Evento: ${event}`, 'info');
+        }
+      }
+    }
+
+    // ========================================
+    // MANEJO DE AUDIO DEL SERVIDOR
+    // ========================================
+    let currentAssistantMessage = '';
+
+    function handleServerAudio(audioData) {
       try {
-        addLog('Pidiendo permiso de micrófono...');
+        // Reproducir audio recibido
+        const audioBlob = new Blob([audioData], { type: 'audio/mpeg' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        
+        audio.play().then(() => {
+          addLog('🔊 Reproduciendo respuesta del agente', 'success');
+        }).catch(err => {
+          addLog(`Error reproduciendo audio: ${err}`, 'error');
+        });
+
+        // Limpiar URL después de reproducir
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+        };
+
+      } catch (error) {
+        addLog(`Error procesando audio: ${error.message}`, 'error');
+      }
+    }
+
+    // ========================================
+    // GRABACIÓN DE AUDIO
+    // ========================================
+    async function startRecording() {
+      try {
+        addLog('Solicitando permiso de micrófono...', 'info');
+        
         audioStream = await navigator.mediaDevices.getUserMedia({
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
-            autoGainControl: false
+            autoGainControl: true
           }
         });
-        addLog('Permiso de micrófono CONCEDIDO.');
 
-        mediaRecorder = new MediaRecorder(audioStream);
+        addLog('✓ Permiso concedido', 'success');
 
-        mediaRecorder.onstart = () => {
-          addLog('MediaRecorder iniciado (llamada activa)');
-          setCallStatus('active');
-          currentUtteranceChunks = [];
-          utteranceHasSpeech = false;
-          utteranceDurationMs = 0;
-          lastVoiceTs = 0;
+        mediaRecorder = new MediaRecorder(audioStream, {
+          mimeType: 'audio/webm'
+        });
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0 && ws && ws.readyState === WebSocket.OPEN) {
+            // Enviar chunk de audio al servidor
+            event.data.arrayBuffer().then(buffer => {
+              ws.send(buffer);
+              addLog(`📤 Audio enviado: ${buffer.byteLength} bytes`, 'info');
+            });
+          }
         };
 
-        mediaRecorder.ondataavailable = (e) => {
-          addLog('Chunk de audio generado, tamaño: ' + e.data.size);
-
-          // Opcional: seguir enviando al WS como debug
-          if (e.data.size > 0 && socket && socket.readyState === WebSocket.OPEN) {
-            e.data.arrayBuffer().then((buf) => {
-              addLog(
-                'Enviando chunk de audio al servidor (' +
-                  buf.byteLength +
-                  ' bytes)'
-              );
-              socket.send(buf);
-            });
-          }
-
-          // Acumulamos SIEMPRE el chunk en la frase actual
-          currentUtteranceChunks.push(e.data);
-          utteranceDurationMs += TIMESLICE_MS;
-
-          const now = Date.now();
-
-          // ¿Hay "voz"? usamos tamaño como proxy burdo
-          if (e.data.size >= SILENCE_THRESHOLD_BYTES) {
-            utteranceHasSpeech = true;
-            lastVoiceTs = now;
-          }
-
-          // Condición 1: silencio suficiente tras voz
-          const msDesdeUltimaVoz = utteranceHasSpeech
-            ? now - lastVoiceTs
-            : 0;
-          const finPorSilencio =
-            utteranceHasSpeech &&
-            msDesdeUltimaVoz >= END_OF_UTTERANCE_SILENCE_MS;
-
-          // Condición 2: frase demasiado larga
-          const finPorLongitud =
-            utteranceHasSpeech && utteranceDurationMs >= MAX_UTTERANCE_MS;
-
-          if ((finPorSilencio || finPorLongitud) && currentUtteranceChunks.length > 0) {
-            const utteranceBlob = new Blob(currentUtteranceChunks, {
-              type: 'audio/webm'
-            });
-
-            // Reset para la siguiente frase
-            currentUtteranceChunks = [];
-            utteranceHasSpeech = false;
-            utteranceDurationMs = 0;
-            lastVoiceTs = 0;
-
-            // Mandamos la frase al backend
-            sendUtteranceToStt(utteranceBlob);
-          }
+        mediaRecorder.onstart = () => {
+          addLog('🎙️ Grabación iniciada', 'success');
+          isRecording = true;
         };
 
         mediaRecorder.onstop = () => {
-          addLog('MediaRecorder parado (llamada finalizada)');
-          setCallStatus('idle');
-
-          // Si quedaba algo de audio sin mandar, lo enviamos
-          if (currentUtteranceChunks.length > 0) {
-            const utteranceBlob = new Blob(currentUtteranceChunks, {
-              type: 'audio/webm'
-            });
-            currentUtteranceChunks = [];
-            utteranceHasSpeech = false;
-            utteranceDurationMs = 0;
-            lastVoiceTs = 0;
-
-            sendUtteranceToStt(utteranceBlob);
-          }
-
-          // Parar stream de audio
-          if (audioStream) {
-            audioStream.getTracks().forEach((t) => t.stop());
-            audioStream = null;
-          }
+          addLog('🎙️ Grabación detenida', 'info');
+          isRecording = false;
         };
 
-        mediaRecorder.start(TIMESLICE_MS);
-        isCallActive = true;
-        btn.classList.add('recording');
-        btn.querySelector('span:nth-child(2)').textContent =
-          'Colgar llamada';
-      } catch (err) {
-        addLog(
-          'ERROR al pedir el micrófono: ' +
-            err.name +
-            ' - ' +
-            err.message
-        );
-        setCallStatus('idle');
+        // Iniciar grabación con chunks de 100ms
+        mediaRecorder.start(100);
+
+      } catch (error) {
+        addLog(`❌ Error iniciando grabación: ${error.message}`, 'error');
       }
     }
 
-    // ---- Finalizar llamada ----
-    function stopCall() {
-      stopRingTone();
+    function stopRecording() {
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
-      } else {
-        if (audioStream) {
-          audioStream.getTracks().forEach((t) => t.stop());
-          audioStream = null;
-        }
       }
-
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.close();
+      
+      if (audioStream) {
+        audioStream.getTracks().forEach(track => track.stop());
+        audioStream = null;
       }
-      isCallActive = false;
-      btn.classList.remove('recording');
-      btn.querySelector('span:nth-child(2)').textContent =
-        'Iniciar llamada';
     }
 
-    // ---- Botón principal: iniciar/colgar ----
-    btn.onclick = async () => {
-      if (!isCallActive) {
-        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-        const wsUrl = `${protocol}://${location.host}`;
-        addLog('Conectando WebSocket a: ' + wsUrl);
-
-        socket = new WebSocket(wsUrl);
-        socket.binaryType = 'arraybuffer';
-
-        socket.onopen = () => {
-          addLog('WS conectado');
-        };
-
-        socket.onmessage = (event) => {
-          addLog('Respuesta servidor: ' + event.data);
-        };
-
-        socket.onclose = () => addLog('WS cerrado');
-        socket.onerror = () => addLog('WS error');
-
-        // Primera vez: tonos de llamada
-        if (!hasRungOnce) {
-          setCallStatus('ringing');
-          startRingTone();
-          btn.classList.add('recording');
-          btn.querySelector('span:nth-child(2)').textContent =
-            'Colgar llamada';
-
-          setTimeout(() => {
-            stopRingTone();
-            hasRungOnce = true;
-            startCall();
-          }, 2500); // ~2.5s de “llamando”
-        } else {
-          // Siguientes: ya sin tonos
-          setCallStatus('active');
-          btn.classList.add('recording');
-          btn.querySelector('span:nth-child(2)').textContent =
-            'Colgar llamada';
-          startCall();
-        }
+    // ========================================
+    // UI UPDATES
+    // ========================================
+    function updateStatus(status) {
+      if (status === 'connected') {
+        statusCard.classList.remove('disconnected');
+        statusText.textContent = 'Conectado - Listo para conversar';
+        btnConnect.classList.remove('btn-primary');
+        btnConnect.classList.add('btn-danger');
+        btnConnect.innerHTML = '<span>❌</span><span>Desconectar</span>';
+        isConnected = true;
       } else {
-        // Colgar
-        stopCall();
+        statusCard.classList.add('disconnected');
+        statusText.textContent = 'Desconectado';
+        btnConnect.classList.remove('btn-danger');
+        btnConnect.classList.add('btn-primary');
+        btnConnect.innerHTML = '<span>🔌</span><span>Conectar</span>';
+        isConnected = false;
+      }
+    }
+
+    // ========================================
+    // CLEANUP
+    // ========================================
+    function cleanup() {
+      stopRecording();
+      
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+      
+      isConnected = false;
+      isRecording = false;
+    }
+
+    // ========================================
+    // EVENT LISTENERS
+    // ========================================
+    btnConnect.onclick = () => {
+      if (isConnected) {
+        addLog('Desconectando...', 'info');
+        cleanup();
+        updateStatus('disconnected');
+      } else {
+        connectWebSocket();
       }
     };
+
+    // Cleanup al cerrar la página
+    window.addEventListener('beforeunload', cleanup);
+
+    // ========================================
+    // INICIALIZACIÓN
+    // ========================================
+    addLog('Aplicación cargada. Lista para conectar.', 'success');
   </script>
 </body>
 </html>
