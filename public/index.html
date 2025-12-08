@@ -386,7 +386,7 @@
             <label for="clientName">Nombre del cliente (para la demo)</label>
             <input id="clientName" type="text" placeholder="Ej: Iván Fernández" />
             <div class="hint">
-              Solo visual: sirve para mostrar en la cabecera con quién está “hablando” el agente y se usa en el saludo inicial.
+              Solo visual: se muestra en la cabecera y se usa en el saludo inicial del agente.
             </div>
           </div>
 
@@ -407,7 +407,7 @@
           1) Escribe un nombre de cliente (opcional).<br />
           2) Elige el motor de voz.<br />
           3) Pulsa <em>Iniciar llamada</em>, escucha los tonos de establecimiento (solo la primera vez) y habla como si fueses el cliente
-          al otro lado del teléfono.
+          al otro lado del teléfono. No hace falta pulsar más: el agente detecta las pausas y te contesta.
         </div>
 
         <div class="logs-toggle" id="logsToggle">
@@ -421,386 +421,403 @@
     </div>
   </div>
 
-<script>
-  const btn = document.getElementById('btnToggle');
-  const logEl = document.getElementById('log');
-  const userTextEl = document.getElementById('userText');
-  const agentTextEl = document.getElementById('agentText');
-  const callStatusEl = document.getElementById('callStatus');
-  const callStatusTextEl = document.getElementById('callStatusText');
-  const clientNameInput = document.getElementById('clientName');
-  const topClientNameEl = document.getElementById('topClientName');
-  const ttsSelect = document.getElementById('ttsProvider');
-  const topTtsEl = document.getElementById('topTts');
-  const logsToggle = document.getElementById('logsToggle');
-  const logContainer = document.getElementById('log-container');
+  <script>
+    const btn = document.getElementById('btnToggle');
+    const logEl = document.getElementById('log');
+    const userTextEl = document.getElementById('userText');
+    const agentTextEl = document.getElementById('agentText');
+    const callStatusEl = document.getElementById('callStatus');
+    const callStatusTextEl = document.getElementById('callStatusText');
+    const clientNameInput = document.getElementById('clientName');
+    const topClientNameEl = document.getElementById('topClientName');
+    const ttsSelect = document.getElementById('ttsProvider');
+    const topTtsEl = document.getElementById('topTts');
+    const logsToggle = document.getElementById('logsToggle');
+    const logContainer = document.getElementById('log-container');
 
-  let mediaRecorder;
-  let audioStream;
-  let socket;
-  let isCallActive = false;
-  let ringInterval = null;
-  let hasRungOnce = false; // tonos solo primera vez
+    let mediaRecorder;
+    let audioStream;
+    let socket;
+    let isCallActive = false;
+    let ringInterval = null;
+    let hasRungOnce = false; // tonos solo primera vez
 
-  // Historial de conversación para mandar al backend
-  let conversationHistory = [];
+    // Historial de conversación para mandar al backend
+    let conversationHistory = [];
 
-  // Detección de silencios (para “manos libres”)
-  let currentUtteranceChunks = [];
-  let silenceSlices = 0;
-  const TIMESLICE_MS = 500;             // cada 500 ms llega un chunk
-  const SILENCE_THRESHOLD_BYTES = 2000; // por debajo de esto = casi silencio
-  const MAX_SILENCE_SLICES = 6;         // ~ 3 s de silencio => cerramos frase
+    // Detección de “frases” por pausas
+    let currentUtteranceChunks = [];
+    let utteranceHasSpeech = false;
+    let utteranceDurationMs = 0;
+    let lastVoiceTs = 0;
 
-  function addLog(msg) {
-    logEl.textContent += msg + '\n';
-    logEl.scrollTop = logEl.scrollHeight;
-    console.log(msg);
-  }
+    const TIMESLICE_MS = 200;               // chunk cada 200ms
+    const SILENCE_THRESHOLD_BYTES = 1500;   // por debajo: casi silencio
+    const END_OF_UTTERANCE_SILENCE_MS = 800; // 0.8s de silencio => fin frase
+    const MAX_UTTERANCE_MS = 7000;          // máximo 7s por frase
 
-  // Actualizar cabecera con nombre y TTS
-  clientNameInput.addEventListener('input', () => {
-    const name = clientNameInput.value.trim();
-    topClientNameEl.textContent = name
-      ? 'Cliente demo: ' + name
-      : 'Cliente demo: (sin nombre)';
-  });
-
-  ttsSelect.addEventListener('change', () => {
-    const label =
-      ttsSelect.value === 'elevenlabs'
-        ? 'ElevenLabs TTS'
-        : 'OpenAI TTS';
-    topTtsEl.textContent = 'Motor de voz: ' + label;
-  });
-
-  // Mostrar/ocultar logs
-  logsToggle.addEventListener('click', () => {
-    const open = logContainer.style.display === 'block';
-    logContainer.style.display = open ? 'none' : 'block';
-    logsToggle.classList.toggle('open', !open);
-  });
-
-  // Gestión de estados visuales de la llamada
-  function setCallStatus(mode) {
-    callStatusEl.classList.remove('idle', 'ringing');
-    if (mode === 'ringing') {
-      callStatusEl.classList.add('ringing');
-      callStatusTextEl.textContent = 'Llamando al agente...';
-    } else if (mode === 'active') {
-      callStatusTextEl.textContent = 'En llamada';
-    } else {
-      callStatusEl.classList.add('idle');
-      callStatusTextEl.textContent = 'Listo para llamar';
+    function addLog(msg) {
+      logEl.textContent += msg + '\n';
+      logEl.scrollTop = logEl.scrollHeight;
+      console.log(msg);
     }
-  }
 
-  // Simular tonos de establecimiento (ring)
-  function startRingTone() {
-    stopRingTone();
-    try {
-      const AudioContext =
-        window.AudioContext || window.webkitAudioContext;
-      const ctx = new AudioContext();
+    // Actualizar cabecera con nombre y TTS
+    clientNameInput.addEventListener('input', () => {
+      const name = clientNameInput.value.trim();
+      topClientNameEl.textContent = name
+        ? 'Cliente demo: ' + name
+        : 'Cliente demo: (sin nombre)';
+    });
 
-      function playBeep() {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = 440;
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.05);
-        gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.9);
-        osc.start();
-        osc.stop(ctx.currentTime + 1.0);
+    ttsSelect.addEventListener('change', () => {
+      const label =
+        ttsSelect.value === 'elevenlabs'
+          ? 'ElevenLabs TTS'
+          : 'OpenAI TTS';
+      topTtsEl.textContent = 'Motor de voz: ' + label;
+    });
+
+    // Mostrar/ocultar logs
+    logsToggle.addEventListener('click', () => {
+      const open = logContainer.style.display === 'block';
+      logContainer.style.display = open ? 'none' : 'block';
+      logsToggle.classList.toggle('open', !open);
+    });
+
+    // Gestión de estados visuales de la llamada
+    function setCallStatus(mode) {
+      callStatusEl.classList.remove('idle', 'ringing');
+      if (mode === 'ringing') {
+        callStatusEl.classList.add('ringing');
+        callStatusTextEl.textContent = 'Llamando al agente...';
+      } else if (mode === 'active') {
+        callStatusTextEl.textContent = 'En llamada';
+      } else {
+        callStatusEl.classList.add('idle');
+        callStatusTextEl.textContent = 'Listo para llamar';
       }
-
-      playBeep();
-      ringInterval = setInterval(playBeep, 1600);
-      ringInterval._audioCtx = ctx;
-    } catch (e) {
-      addLog('No se ha podido iniciar el tono de llamada: ' + e.message);
     }
-  }
 
-  function stopRingTone() {
-    if (ringInterval) {
-      clearInterval(ringInterval);
-      if (ringInterval._audioCtx) {
-        try {
-          ringInterval._audioCtx.close();
-        } catch {}
+    // Simular tonos de establecimiento (ring)
+    function startRingTone() {
+      stopRingTone();
+      try {
+        const AudioContext =
+          window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioContext();
+
+        function playBeep() {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = 440;
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.05);
+          gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.9);
+          osc.start();
+          osc.stop(ctx.currentTime + 1.0);
+        }
+
+        playBeep();
+        ringInterval = setInterval(playBeep, 1600);
+        ringInterval._audioCtx = ctx;
+      } catch (e) {
+        addLog('No se ha podido iniciar el tono de llamada: ' + e.message);
       }
-      ringInterval = null;
     }
-  }
 
-  // ---- Enviar una “frase” completa a /stt ----
-  async function sendUtteranceToStt(blob) {
-    try {
-      addLog('Frase detectada, tamaño total: ' + blob.size);
+    function stopRingTone() {
+      if (ringInterval) {
+        clearInterval(ringInterval);
+        if (ringInterval._audioCtx) {
+          try {
+            ringInterval._audioCtx.close();
+          } catch {}
+        }
+        ringInterval = null;
+      }
+    }
 
-      const formData = new FormData();
-      formData.append('audio', blob, 'grabacion.webm');
+    // ---- Enviar una “frase” completa a /stt ----
+    async function sendUtteranceToStt(blob) {
+      try {
+        if (!blob || blob.size === 0) return;
+        addLog('Frase detectada, tamaño total: ' + blob.size);
 
-      // Motor de voz
-      const ttsProvider = ttsSelect ? ttsSelect.value : 'openai';
-      formData.append('ttsProvider', ttsProvider);
+        const formData = new FormData();
+        formData.append('audio', blob, 'grabacion.webm');
 
-      // Nombre del cliente (para saludo inicial y uso en el prompt)
-      const clientName = clientNameInput ? clientNameInput.value : '';
-      formData.append('clientName', clientName);
+        // Motor de voz
+        const ttsProvider = ttsSelect ? ttsSelect.value : 'openai';
+        formData.append('ttsProvider', ttsProvider);
 
-      // Historial
-      formData.append('history', JSON.stringify(conversationHistory));
+        // Nombre del cliente
+        const clientName = clientNameInput ? clientNameInput.value : '';
+        formData.append('clientName', clientName);
 
-      addLog('Enviando frase a /stt...');
-      const resp = await fetch('/stt', {
-        method: 'POST',
-        body: formData
-      });
+        // Historial
+        formData.append('history', JSON.stringify(conversationHistory));
 
-      if (!resp.ok) {
-        const errText = await resp.text();
-        addLog('Error STT HTTP: ' + resp.status + ' - ' + errText);
+        addLog('Enviando frase a /stt...');
+        const resp = await fetch('/stt', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!resp.ok) {
+          const errText = await resp.text();
+          addLog('Error STT HTTP: ' + resp.status + ' - ' + errText);
+          return;
+        }
+
+        const data = await resp.json();
+
+        if (data.transcript) {
+          userTextEl.textContent = data.transcript;
+          conversationHistory.push({
+            role: 'user',
+            content: data.transcript
+          });
+        } else {
+          userTextEl.textContent = '(no se ha entendido nada claro)';
+        }
+
+        if (data.answer) {
+          agentTextEl.textContent = data.answer;
+          conversationHistory.push({
+            role: 'assistant',
+            content: data.answer
+          });
+        }
+
+        if (conversationHistory.length > 10) {
+          conversationHistory = conversationHistory.slice(
+            conversationHistory.length - 10
+          );
+        }
+
+        addLog('Transcripción: ' + (data.transcript || ''));
+        addLog('Respuesta IA (texto): ' + (data.answer || ''));
+
+        if (data.audio) {
+          try {
+            addLog('Reproduciendo audio de respuesta...');
+            const audioBytes = Uint8Array.from(
+              atob(data.audio),
+              (c) => c.charCodeAt(0)
+            );
+            const audioBlob = new Blob([audioBytes], {
+              type: 'audio/mpeg'
+            });
+            const url = URL.createObjectURL(audioBlob);
+            const audio = new Audio(url);
+            audio.play();
+          } catch (e) {
+            addLog('Error reproduciendo audio: ' + e.message);
+          }
+        }
+      } catch (err) {
+        addLog('Error llamando a /stt: ' + err.message);
+      }
+    }
+
+    // ---- Iniciar llamada (mic abierto, detección de pausas) ----
+    async function startCall() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        addLog(
+          'ERROR: getUserMedia NO disponible (necesitas HTTPS o localhost).'
+        );
         return;
       }
 
-      const data = await resp.json();
-
-      if (data.transcript) {
-        userTextEl.textContent = data.transcript;
-        conversationHistory.push({
-          role: 'user',
-          content: data.transcript
+      try {
+        addLog('Pidiendo permiso de micrófono...');
+        audioStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: false
+          }
         });
-      } else {
-        userTextEl.textContent = '(no se ha entendido nada claro)';
-      }
+        addLog('Permiso de micrófono CONCEDIDO.');
 
-      if (data.answer) {
-        agentTextEl.textContent = data.answer;
-        conversationHistory.push({
-          role: 'assistant',
-          content: data.answer
-        });
-      }
+        mediaRecorder = new MediaRecorder(audioStream);
 
-      if (conversationHistory.length > 10) {
-        conversationHistory = conversationHistory.slice(
-          conversationHistory.length - 10
-        );
-      }
+        mediaRecorder.onstart = () => {
+          addLog('MediaRecorder iniciado (llamada activa)');
+          setCallStatus('active');
+          currentUtteranceChunks = [];
+          utteranceHasSpeech = false;
+          utteranceDurationMs = 0;
+          lastVoiceTs = 0;
+        };
 
-      addLog('Transcripción: ' + (data.transcript || ''));
-      addLog('Respuesta IA (texto): ' + (data.answer || ''));
+        mediaRecorder.ondataavailable = (e) => {
+          addLog('Chunk de audio generado, tamaño: ' + e.data.size);
 
-      if (data.audio) {
-        try {
-          addLog('Reproduciendo audio de respuesta...');
-          const audioBytes = Uint8Array.from(
-            atob(data.audio),
-            (c) => c.charCodeAt(0)
-          );
-          const audioBlob = new Blob([audioBytes], {
-            type: 'audio/mpeg'
-          });
-          const url = URL.createObjectURL(audioBlob);
-          const audio = new Audio(url);
-          audio.play();
-        } catch (e) {
-          addLog('Error reproduciendo audio: ' + e.message);
-        }
-      }
-    } catch (err) {
-      addLog('Error llamando a /stt: ' + err.message);
-    }
-  }
+          // Opcional: seguir enviando al WS como debug
+          if (e.data.size > 0 && socket && socket.readyState === WebSocket.OPEN) {
+            e.data.arrayBuffer().then((buf) => {
+              addLog(
+                'Enviando chunk de audio al servidor (' +
+                  buf.byteLength +
+                  ' bytes)'
+              );
+              socket.send(buf);
+            });
+          }
 
-  // ---- Iniciar llamada (mic abierto todo el rato, detección de pausas) ----
-  async function startCall() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      addLog(
-        'ERROR: getUserMedia NO disponible (necesitas HTTPS o localhost).'
-      );
-      return;
-    }
-
-    try {
-      addLog('Pidiendo permiso de micrófono...');
-      audioStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: false
-        }
-      });
-      addLog('Permiso de micrófono CONCEDIDO.');
-
-      mediaRecorder = new MediaRecorder(audioStream);
-
-      mediaRecorder.onstart = () => {
-        addLog('MediaRecorder iniciado (llamada activa)');
-        setCallStatus('active');
-        // reseteamos buffers por si acaso
-        currentUtteranceChunks = [];
-        silenceSlices = 0;
-      };
-
-      mediaRecorder.ondataavailable = (e) => {
-        // Este evento se dispara cada TIMESLICE_MS con un trocito de audio
-        addLog('Chunk de audio generado, tamaño: ' + e.data.size);
-
-        // Opcional: seguir enviando al WS como debug (como antes)
-        if (e.data.size > 0 && socket && socket.readyState === WebSocket.OPEN) {
-          e.data.arrayBuffer().then((buf) => {
-            addLog(
-              'Enviando chunk de audio al servidor (' +
-                buf.byteLength +
-                ' bytes)'
-            );
-            socket.send(buf);
-          });
-        }
-
-        // --- Lógica simple de detección de silencios ---
-        if (e.data.size < SILENCE_THRESHOLD_BYTES) {
-          // lo consideramos silencio
-          silenceSlices++;
-        } else {
-          // hay voz
-          silenceSlices = 0;
+          // Acumulamos SIEMPRE el chunk en la frase actual
           currentUtteranceChunks.push(e.data);
-        }
+          utteranceDurationMs += TIMESLICE_MS;
 
-        // Si acumulamos suficiente silencio después de haber tenido voz,
-        // damos por terminada la "frase" y la mandamos a /stt.
-        if (
-          silenceSlices >= MAX_SILENCE_SLICES &&
-          currentUtteranceChunks.length > 0
-        ) {
-          const utteranceBlob = new Blob(currentUtteranceChunks, {
-            type: 'audio/webm'
-          });
-          // Limpieza para la siguiente frase
-          currentUtteranceChunks = [];
-          silenceSlices = 0;
+          const now = Date.now();
 
-          // Mandamos la frase al backend
-          sendUtteranceToStt(utteranceBlob);
-        }
-      };
+          // ¿Hay "voz"? usamos tamaño como proxy burdo
+          if (e.data.size >= SILENCE_THRESHOLD_BYTES) {
+            utteranceHasSpeech = true;
+            lastVoiceTs = now;
+          }
 
-      mediaRecorder.onstop = () => {
-        addLog('MediaRecorder parado (llamada finalizada)');
+          // Condición 1: silencio suficiente tras voz
+          const msDesdeUltimaVoz = utteranceHasSpeech
+            ? now - lastVoiceTs
+            : 0;
+          const finPorSilencio =
+            utteranceHasSpeech &&
+            msDesdeUltimaVoz >= END_OF_UTTERANCE_SILENCE_MS;
+
+          // Condición 2: frase demasiado larga
+          const finPorLongitud =
+            utteranceHasSpeech && utteranceDurationMs >= MAX_UTTERANCE_MS;
+
+          if ((finPorSilencio || finPorLongitud) && currentUtteranceChunks.length > 0) {
+            const utteranceBlob = new Blob(currentUtteranceChunks, {
+              type: 'audio/webm'
+            });
+
+            // Reset para la siguiente frase
+            currentUtteranceChunks = [];
+            utteranceHasSpeech = false;
+            utteranceDurationMs = 0;
+            lastVoiceTs = 0;
+
+            // Mandamos la frase al backend
+            sendUtteranceToStt(utteranceBlob);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          addLog('MediaRecorder parado (llamada finalizada)');
+          setCallStatus('idle');
+
+          // Si quedaba algo de audio sin mandar, lo enviamos
+          if (currentUtteranceChunks.length > 0) {
+            const utteranceBlob = new Blob(currentUtteranceChunks, {
+              type: 'audio/webm'
+            });
+            currentUtteranceChunks = [];
+            utteranceHasSpeech = false;
+            utteranceDurationMs = 0;
+            lastVoiceTs = 0;
+
+            sendUtteranceToStt(utteranceBlob);
+          }
+
+          // Parar stream de audio
+          if (audioStream) {
+            audioStream.getTracks().forEach((t) => t.stop());
+            audioStream = null;
+          }
+        };
+
+        mediaRecorder.start(TIMESLICE_MS);
+        isCallActive = true;
+        btn.classList.add('recording');
+        btn.querySelector('span:nth-child(2)').textContent =
+          'Colgar llamada';
+      } catch (err) {
+        addLog(
+          'ERROR al pedir el micrófono: ' +
+            err.name +
+            ' - ' +
+            err.message
+        );
         setCallStatus('idle');
+      }
+    }
 
-        // Al colgar, si quedaba algo de audio sin mandar, lo enviamos
-        if (currentUtteranceChunks.length > 0) {
-          const utteranceBlob = new Blob(currentUtteranceChunks, {
-            type: 'audio/webm'
-          });
-          currentUtteranceChunks = [];
-          silenceSlices = 0;
-          sendUtteranceToStt(utteranceBlob);
-        }
-
-        // Parar también el stream de audio
+    // ---- Finalizar llamada ----
+    function stopCall() {
+      stopRingTone();
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      } else {
         if (audioStream) {
           audioStream.getTracks().forEach((t) => t.stop());
           audioStream = null;
         }
-      };
+      }
 
-      mediaRecorder.start(TIMESLICE_MS);
-      isCallActive = true;
-      btn.classList.add('recording');
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.close();
+      }
+      isCallActive = false;
+      btn.classList.remove('recording');
       btn.querySelector('span:nth-child(2)').textContent =
-        'Colgar llamada';
-    } catch (err) {
-      addLog(
-        'ERROR al pedir el micrófono: ' +
-          err.name +
-          ' - ' +
-          err.message
-      );
-      setCallStatus('idle');
-    }
-  }
-
-  // ---- Finalizar llamada ----
-  function stopCall() {
-    stopRingTone();
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      mediaRecorder.stop();
-    } else {
-      // si por lo que sea no está activo pero hay stream, lo paramos
-      if (audioStream) {
-        audioStream.getTracks().forEach((t) => t.stop());
-        audioStream = null;
-      }
+        'Iniciar llamada';
     }
 
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.close();
-    }
-    isCallActive = false;
-    btn.classList.remove('recording');
-    btn.querySelector('span:nth-child(2)').textContent =
-      'Iniciar llamada';
-  }
+    // ---- Botón principal: iniciar/colgar ----
+    btn.onclick = async () => {
+      if (!isCallActive) {
+        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+        const wsUrl = `${protocol}://${location.host}`;
+        addLog('Conectando WebSocket a: ' + wsUrl);
 
-  // ---- Botón principal: iniciar/colgar ----
-  btn.onclick = async () => {
-    if (!isCallActive) {
-      // Conexión WS (igual que antes, solo debug)
-      const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-      const wsUrl = `${protocol}://${location.host}`;
-      addLog('Conectando WebSocket a: ' + wsUrl);
+        socket = new WebSocket(wsUrl);
+        socket.binaryType = 'arraybuffer';
 
-      socket = new WebSocket(wsUrl);
-      socket.binaryType = 'arraybuffer';
+        socket.onopen = () => {
+          addLog('WS conectado');
+        };
 
-      socket.onopen = () => {
-        addLog('WS conectado');
-      };
+        socket.onmessage = (event) => {
+          addLog('Respuesta servidor: ' + event.data);
+        };
 
-      socket.onmessage = (event) => {
-        addLog('Respuesta servidor: ' + event.data);
-      };
+        socket.onclose = () => addLog('WS cerrado');
+        socket.onerror = () => addLog('WS error');
 
-      socket.onclose = () => addLog('WS cerrado');
-      socket.onerror = () => addLog('WS error');
+        // Primera vez: tonos de llamada
+        if (!hasRungOnce) {
+          setCallStatus('ringing');
+          startRingTone();
+          btn.classList.add('recording');
+          btn.querySelector('span:nth-child(2)').textContent =
+            'Colgar llamada';
 
-      // Primera vez: tonos de llamada
-      if (!hasRungOnce) {
-        setCallStatus('ringing');
-        startRingTone();
-        btn.classList.add('recording');
-        btn.querySelector('span:nth-child(2)').textContent =
-          'Colgar llamada';
-
-        setTimeout(() => {
-          stopRingTone();
-          hasRungOnce = true;
+          setTimeout(() => {
+            stopRingTone();
+            hasRungOnce = true;
+            startCall();
+          }, 2500); // ~2.5s de “llamando”
+        } else {
+          // Siguientes: ya sin tonos
+          setCallStatus('active');
+          btn.classList.add('recording');
+          btn.querySelector('span:nth-child(2)').textContent =
+            'Colgar llamada';
           startCall();
-        }, 2500); // ~2.5s de “llamando”
+        }
       } else {
-        // Siguientes: ya sin tonos
-        setCallStatus('active');
-        btn.classList.add('recording');
-        btn.querySelector('span:nth-child(2)').textContent =
-          'Colgar llamada';
-        startCall();
+        // Colgar
+        stopCall();
       }
-    } else {
-      // Colgar
-      stopCall();
-    }
-  };
-</script>
-
+    };
+  </script>
 </body>
 </html>
