@@ -32,6 +32,9 @@ COPY . .
 # ============================================
 FROM node:20-alpine AS runner
 
+# Instalar ffmpeg para conversión de audio WebM → MP3
+RUN apk add --no-cache ffmpeg
+
 # Metadata
 LABEL maintainer="Zener Dev Team"
 LABEL description="Voice Agent con streaming realtime"
