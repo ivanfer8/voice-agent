@@ -116,7 +116,20 @@ export function setupLegacyRoutes(app) {
 
       const filePath = req.file.path;
       const newPath = filePath + '.webm';
-      fs.renameSync(filePath, newPath);
+      
+      // Verificar que el archivo existe antes de renombrar
+      if (!fs.existsSync(filePath)) {
+        logger.error(`Archivo no encontrado: ${filePath}`);
+        return res.status(400).json({ error: 'Archivo de audio no encontrado' });
+      }
+      
+      try {
+        fs.renameSync(filePath, newPath);
+        logger.debug(`Archivo renombrado: ${filePath} -> ${newPath}`);
+      } catch (renameError) {
+        logger.error(`Error al renombrar archivo: ${renameError.message}`);
+        return res.status(500).json({ error: 'Error procesando archivo de audio' });
+      }
 
       // 1) Transcripción con Whisper
       const transcription = await openai.audio.transcriptions.create({

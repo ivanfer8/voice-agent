@@ -3,9 +3,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { createModuleLogger, logSession } from '../utils/logger.js';
 import { getSessionManager } from '../modules/session/manager.js';
 import DeepgramSTT from '../modules/stt/deepgram.js';
+import GroqSTT from '../modules/stt/groq.js';
 import OpenAILLM from '../modules/llm/openai.js';
 import ElevenLabsTTS from '../modules/tts/elevenlabs.js';
 import AudioBufferManager from '../audio/buffer-manager.js';
+import config from '../config/env.js';
 
 const logger = createModuleLogger('WebSocketHandler');
 const sessionManager = getSessionManager();
@@ -54,7 +56,15 @@ export class VoiceConversationHandler {
       this.audioBuffer = new AudioBufferManager(this.sessionId);
 
       // Inicializar proveedores
-      this.sttProvider = new DeepgramSTT();
+      // STT: Usar proveedor configurado (Groq o Deepgram)
+      if (config.sttProvider === 'groq') {
+        logger.info(`Usando Groq Whisper para STT [${this.sessionId}]`);
+        this.sttProvider = new GroqSTT();
+      } else {
+        logger.info(`Usando Deepgram para STT [${this.sessionId}]`);
+        this.sttProvider = new DeepgramSTT();
+      }
+      
       this.llmProvider = new OpenAILLM();
       this.ttsProvider = new ElevenLabsTTS();
 

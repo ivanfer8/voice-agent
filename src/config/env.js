@@ -57,12 +57,21 @@ export const config = {
   // Modo de operación
   enableRealtime: getBoolEnv('ENABLE_REALTIME', false),
   
-  // Deepgram (STT)
+  // Deepgram (STT) - OPCIONAL si usas Groq
   deepgram: {
-    apiKey: requireEnv('DEEPGRAM_API_KEY'),
+    apiKey: getEnv('DEEPGRAM_API_KEY', ''),
     model: getEnv('DEEPGRAM_MODEL', 'nova-2'),
     language: getEnv('DEEPGRAM_LANGUAGE', 'es'),
   },
+  
+  // Groq (STT alternativo - GRATIS)
+  groq: {
+    apiKey: getEnv('GROQ_API_KEY', ''),
+    model: getEnv('GROQ_MODEL', 'whisper-large-v3'),
+  },
+  
+  // Proveedor STT a usar (deepgram o groq)
+  sttProvider: getEnv('STT_PROVIDER', 'groq').toLowerCase(),
   
   // OpenAI (LLM)
   openai: {
@@ -116,9 +125,27 @@ export function validateConfig() {
     console.log(`  - Modo: ${config.enableRealtime ? 'REALTIME (v2)' : 'LEGACY (v1)'}`);
     console.log(`  - Puerto: ${config.port}`);
     console.log(`  - Entorno: ${config.nodeEnv}`);
-    console.log(`  - Deepgram: ${config.deepgram.model} (${config.deepgram.language})`);
-    console.log(`  - OpenAI: ${config.openai.model}`);
-    console.log(`  - ElevenLabs: ${config.elevenlabs.model}`);
+    
+    // Mostrar proveedor STT según el modo
+    if (config.enableRealtime) {
+      const sttProvider = config.sttProvider === 'groq' ? 'Groq Whisper' : 'Deepgram';
+      console.log(`  - STT: ${sttProvider}`);
+      
+      // Validar que existe la key del proveedor seleccionado
+      if (config.sttProvider === 'groq' && !config.groq.apiKey) {
+        console.error('  ✗ ERROR: GROQ_API_KEY requerida cuando STT_PROVIDER=groq');
+        return false;
+      }
+      if (config.sttProvider === 'deepgram' && !config.deepgram.apiKey) {
+        console.error('  ✗ ERROR: DEEPGRAM_API_KEY requerida cuando STT_PROVIDER=deepgram');
+        return false;
+      }
+    } else {
+      console.log(`  - STT: OpenAI Whisper (legacy)`);
+    }
+    
+    console.log(`  - LLM: ${config.openai.model}`);
+    console.log(`  - TTS: ElevenLabs ${config.elevenlabs.model}`);
     console.log(`  - Redis: ${config.redis.enabled ? 'HABILITADO' : 'DESHABILITADO'}`);
     return true;
   } catch (error) {
