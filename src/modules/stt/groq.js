@@ -95,7 +95,7 @@ class GroqSTT extends STTProvider {
       }
 
       // Evitar enviar a Groq ruidos mínimos o buffers muy pequeños
-      if (audioBuffer.length < 30000) { // ~1s de audio orientativo
+      if (audioBuffer.length < 10000) { // ~1s de audio orientativo
         logAudio('chunk_too_small', {
           sessionId: this.sessionId,
           size: audioBuffer.length,
