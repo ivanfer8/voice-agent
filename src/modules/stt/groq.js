@@ -58,10 +58,10 @@ export class GroqSTT extends STTProvider {
 
   /**
    * Iniciar procesamiento periódico del buffer de audio
-   * Procesamos cada 1 segundo para simular streaming
+   * Procesamos cada 2 segundos para acumular suficiente audio
    */
   startBufferProcessing() {
-    const PROCESS_INTERVAL_MS = 1000; // Procesar cada segundo
+    const PROCESS_INTERVAL_MS = 2000; // Procesar cada 2 segundos
 
     this.processingInterval = setInterval(async () => {
       if (this.audioBuffer.length > 0) {
@@ -85,8 +85,8 @@ export class GroqSTT extends STTProvider {
 
       const audioSize = combinedBuffer.length;
       
-      // Solo procesar si hay suficiente audio (mínimo 16KB ~ 0.5s de audio)
-      if (audioSize < 16000) {
+      // Solo procesar si hay suficiente audio (mínimo 32KB ~ 1s de audio)
+      if (audioSize < 32000) {
         logAudio('buffer_too_small', {
           sessionId: this.sessionId,
           size: audioSize,
@@ -96,25 +96,39 @@ export class GroqSTT extends STTProvider {
 
       const transcriptStartTime = Date.now();
 
-      // Crear blob de audio en formato webm
-      const audioBlob = new Blob([combinedBuffer], { type: 'audio/webm' });
-      
-      // Convertir a File (Groq espera un File object)
-      const audioFile = new File([audioBlob], 'audio.webm', { type: 'audio/webm' });
-
       logAudio('sending_to_groq', {
         sessionId: this.sessionId,
         size: audioSize,
       });
 
+      // Crear archivo temporal para Groq
+      const fs = await import('fs');
+      const path = await import('path');
+      const os = await import('os');
+      
+      const tempDir = os.tmpdir();
+      const tempFilePath = path.join(tempDir, `audio-${this.sessionId}-${Date.now()}.webm`);
+      
+      // Escribir buffer a archivo temporal
+      fs.writeFileSync(tempFilePath, combinedBuffer);
+      
+      logger.debug(`Archivo temporal creado: ${tempFilePath} (${audioSize} bytes)`);
+
       // Transcribir con Groq Whisper
       const transcription = await this.client.audio.transcriptions.create({
-        file: audioFile,
+        file: fs.createReadStream(tempFilePath),
         model: 'whisper-large-v3',
         language: 'es',
         response_format: 'json',
         temperature: 0.0,
       });
+
+      // Eliminar archivo temporal
+      try {
+        fs.unlinkSync(tempFilePath);
+      } catch (cleanupError) {
+        logger.warn(`No se pudo eliminar archivo temporal: ${cleanupError.message}`);
+      }
 
       const transcriptTime = Date.now() - transcriptStartTime;
       logLatency('groq_transcription', transcriptTime, { 
@@ -144,14 +158,25 @@ export class GroqSTT extends STTProvider {
       }
 
     } catch (error) {
+      // Logging mejorado del error
+      const errorDetails = {
+        message: error.message,
+        type: error.constructor.name,
+        status: error.status,
+        statusText: error.statusText,
+        response: error.response?.data,
+      };
+
+      logger.error(`Error transcribiendo con Groq [${this.sessionId}]:`, errorDetails);
+      
       // Si es error de archivo muy pequeño, ignorar silenciosamente
-      if (error.message?.includes('too small') || error.message?.includes('minimum')) {
+      if (error.message?.includes('too small') || 
+          error.message?.includes('minimum') ||
+          error.message?.includes('duration')) {
         logAudio('audio_chunk_too_small', { sessionId: this.sessionId });
         return;
       }
 
-      logger.error(`Error transcribiendo con Groq [${this.sessionId}]:`, error);
-      
       if (this.errorCallback) {
         this.errorCallback(error);
       }
