@@ -397,28 +397,70 @@ export function initWebSocketServer(server) {
     const sessionId = uuidv4();
     logger.info(`Nueva conexión WebSocket: ${sessionId}`);
 
-    let handler = null;
+    // Creamos el handler nada más conectar
+    let handler = new VoiceConversationHandler(ws, sessionId);
+
+    // Auto-inicialización en segundo plano
+    (async () => {
+      try {
+        // Metadata por defecto; se podrá sobrescribir desde el cliente
+        const defaultMetadata = {
+          clientName: 'Cliente demo',
+        };
+
+        await handler.initialize(defaultMetadata);
+        logger.info(`Sesión auto-inicializada [${sessionId}]`);
+      } catch (error) {
+        logger.error(`Error auto-inicializando sesión [${sessionId}]:`, error);
+        // Enviamos error al cliente y cerramos
+        try {
+          ws.send(JSON.stringify({
+            type: 'error',
+            error: 'init_failed',
+            message: error.message,
+          }));
+        } catch (e) {
+          // ignorar
+        }
+        ws.close();
+      }
+    })();
 
     ws.on('message', async (message, isBinary) => {
       try {
-        // Mensaje de inicialización (JSON)
         if (!isBinary) {
           const data = JSON.parse(message.toString());
 
           if (data.type === 'init') {
-            // Inicializar conversación
-            handler = new VoiceConversationHandler(ws, sessionId);
-            await handler.initialize(data.metadata || {});
-          } else if (data.type === 'metadata') {
-            // Actualizar metadata
+            // Ahora tratamos init solo como actualización de metadata
             if (handler && handler.session) {
-              sessionManager.updateMetadata(sessionId, data.metadata);
+              const metadata = data.metadata || {};
+              sessionManager.updateMetadata(sessionId, metadata);
+              logger.info(
+                `Metadata actualizada vía init [${sessionId}]: ${JSON.stringify(metadata)}`
+              );
             }
+          } else if (data.type === 'metadata') {
+            // Actualizar metadata explícita
+            if (handler && handler.session) {
+              const metadata = data.metadata || {};
+              sessionManager.updateMetadata(sessionId, metadata);
+              logger.info(
+                `Metadata actualizada [${sessionId}]: ${JSON.stringify(metadata)}`
+              );
+            }
+          } else {
+            // Otros mensajes JSON si en el futuro añades más tipos
+            logger.debug(`Mensaje JSON no reconocido [${sessionId}]: ${data.type}`);
           }
         } else {
           // Audio binario (Buffer)
           if (handler) {
             await handler.handleIncomingAudio(Buffer.from(message));
+          } else {
+            logger.warn(
+              `Se recibió audio pero no hay handler inicializado [${sessionId}]`
+            );
           }
         }
       } catch (error) {
@@ -442,8 +484,7 @@ export function initWebSocketServer(server) {
       logger.error(`Error en WebSocket [${sessionId}]:`, error);
     });
   });
-
-  return wss;
 }
+
 
 export default { initWebSocketServer, VoiceConversationHandler };
