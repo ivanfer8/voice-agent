@@ -497,7 +497,7 @@
         addLog('✓ Permiso concedido', 'success');
 
         mediaRecorder = new MediaRecorder(audioStream, {
-          mimeType: 'audio/webm'
+           mimeType: 'audio/webm;codecs=opus'
         });
 
         mediaRecorder.ondataavailable = (event) => {
@@ -521,7 +521,7 @@
         };
 
         // Iniciar grabación con chunks de 100ms
-        mediaRecorder.start(100);
+        mediaRecorder.start(1000);
 
       } catch (error) {
         addLog(`❌ Error iniciando grabación: ${error.message}`, 'error');
