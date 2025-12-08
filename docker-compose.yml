@@ -1,0 +1,88 @@
+version: '3.9'
+
+services:
+  # ===================================
+  # VOICE AGENT (Aplicación principal)
+  # ===================================
+  voice-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: voice-agent-zener
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      # General
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      
+      # Modo de operación
+      ENABLE_REALTIME: ${ENABLE_REALTIME:-false}
+      
+      # APIs
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY}
+      ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID}
+      
+      # Redis (si está habilitado)
+      REDIS_ENABLED: ${REDIS_ENABLED:-false}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      
+      # Configuración de audio
+      AUDIO_CHUNK_SIZE_MS: ${AUDIO_CHUNK_SIZE_MS:-100}
+      MAX_SILENCE_MS: ${MAX_SILENCE_MS:-1500}
+      
+      # Session
+      MAX_HISTORY_MESSAGES: ${MAX_HISTORY_MESSAGES:-15}
+      SESSION_TIMEOUT_MS: ${SESSION_TIMEOUT_MS:-1800000}
+      
+      # Monitoring
+      ENABLE_METRICS: ${ENABLE_METRICS:-true}
+      DEBUG_AUDIO: ${DEBUG_AUDIO:-false}
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    networks:
+      - voice-agent-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      redis:
+        condition: service_healthy
+        required: false
+
+  # ===================================
+  # REDIS (Opcional - para sesiones distribuidas)
+  # ===================================
+  redis:
+    image: redis:7-alpine
+    container_name: voice-agent-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - voice-agent-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    profiles:
+      - with-redis
+
+networks:
+  voice-agent-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local

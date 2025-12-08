@@ -1,344 +1,187 @@
-const OpenAI = require('openai');
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+/**
+ * VOICE AGENT SERVER - HÍBRIDO v1 + v2
+ * 
+ * Soporta dos modos de operación:
+ * 
+ * MODO LEGACY (v1): ENABLE_REALTIME=false
+ * - POST /stt con Whisper + GPT-4o + TTS
+ * - Detección de pausas en frontend
+ * - Latencia: 2-4 segundos
+ * 
+ * MODO REALTIME (v2): ENABLE_REALTIME=true
+ * - WebSocket /v2/voice
+ * - Streaming bidireccional: Deepgram + GPT-4o + ElevenLabs
+ * - Latencia: <500ms
+ */
 
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
-const path = require('path');
-const multer = require('multer');
-const fs = require('fs');
+import express from 'express';
+import http from 'http';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import config, { validateConfig } from './src/config/env.js';
+import logger from './src/utils/logger.js';
+import { setupLegacyRoutes } from './src/legacy/stt-handler.js';
+import { initWebSocketServer } from './src/websocket/handler.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// ========================================
+// VALIDAR CONFIGURACIÓN
+// ========================================
+if (!validateConfig()) {
+  logger.error('Error en configuración. Abortando arranque.');
+  process.exit(1);
+}
+
+// ========================================
+// CREAR APP EXPRESS
+// ========================================
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
 
-// =============================
-// Helpers TTS
-// =============================
-
-async function ttsOpenAI(text) {
-  // TTS con OpenAI
-  const speech = await openai.audio.speech.create({
-    model: 'gpt-4o-mini-tts',
-    voice: 'alloy',
-    input: text
-  });
-
-  const audioBuffer = Buffer.from(await speech.arrayBuffer());
-  return audioBuffer.toString('base64'); // mp3 base64
-}
-
-async function ttsElevenLabs(text) {
-  const apiKey = process.env.ELEVENLABS_API_KEY;
-  const voiceId = process.env.ELEVENLABS_VOICE_ID;
-
-  if (!apiKey || !voiceId) {
-    throw new Error('Falta ELEVENLABS_API_KEY o ELEVENLABS_VOICE_ID en las variables de entorno');
-  }
-
-  const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`;
-
-  // Node 18+ trae fetch global
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'xi-api-key': apiKey,
-      'Content-Type': 'application/json',
-      'Accept': 'audio/mpeg'
-    },
-    body: JSON.stringify({
-      text,
-      model_id: 'eleven_multilingual_v2',
-      voice_settings: {
-        stability: 0.35,
-        similarity_boost: 0.8,
-        style: 0.7,
-        use_speaker_boost: true
-      }
-    })
-  });
-
-  if (!resp.ok) {
-    const txt = await resp.text();
-    throw new Error(`Error ElevenLabs: ${resp.status} - ${txt}`);
-  }
-
-  const arrayBuf = await resp.arrayBuffer();
-  const audioBuffer = Buffer.from(arrayBuf);
-  return audioBuffer.toString('base64'); // mp3 base64
-}
-
-// =============================
-// Asegurar carpeta uploads
-// =============================
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-  console.log('Carpeta uploads creada:', uploadsDir);
-}
-
-// Multer para subir audio temporalmente
-const upload = multer({ dest: uploadsDir });
-
-// =============================
-// STATIC: servir frontend
-// =============================
+// Middleware
+app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// =============================
-// HTTP: /stt  (voz -> texto -> respuesta IA -> audio)
-// =============================
-app.post('/stt', upload.single('audio'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No se ha recibido ningún archivo de audio' });
-    }
+// ========================================
+// HEALTH CHECK
+// ========================================
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    mode: config.enableRealtime ? 'realtime (v2)' : 'legacy (v1)',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
 
-    // Historial de conversación recibido del frontend (string JSON)
-    let history = [];
-    if (req.body && req.body.history) {
-      try {
-        history = JSON.parse(req.body.history);
-        if (!Array.isArray(history)) history = [];
-      } catch {
-        history = [];
-      }
-    }
+// ========================================
+// CONFIGURAR RUTAS SEGÚN MODO
+// ========================================
 
-    // Limitar historial a los últimos 10 mensajes
-    if (history.length > 10) {
-      history = history.slice(history.length - 10);
-    }
+if (config.enableRealtime) {
+  // =========== MODO REALTIME (v2) ===========
+  logger.info('🚀 Iniciando en MODO REALTIME (v2)');
+  logger.info('   - WebSocket streaming habilitado');
+  logger.info('   - Endpoint: /v2/voice');
+  
+  // Inicializar WebSocket Server
+  initWebSocketServer(server);
+  
+  logger.info('✓ Modo Realtime configurado correctamente');
+  
+} else {
+  // =========== MODO LEGACY (v1) ===========
+  logger.info('📞 Iniciando en MODO LEGACY (v1)');
+  logger.info('   - POST /stt habilitado');
+  logger.info('   - Compatibilidad total con versión anterior');
+  
+  // Configurar rutas legacy
+  setupLegacyRoutes(app);
+  
+  logger.info('✓ Modo Legacy configurado correctamente');
+}
 
-    // Nombre de cliente recibido desde el front
-    const clientName = (req.body?.clientName || '').trim();
+// ========================================
+// PÁGINA DE INFORMACIÓN
+// ========================================
+app.get('/info', (req, res) => {
+  res.json({
+    name: 'Voice Agent Zener',
+    version: '2.0.0',
+    mode: config.enableRealtime ? 'realtime (v2)' : 'legacy (v1)',
+    endpoints: config.enableRealtime ? {
+      websocket: 'ws://localhost:' + config.port + '/v2/voice',
+      health: '/health',
+      info: '/info',
+    } : {
+      stt: 'POST /stt',
+      health: '/health',
+      info: '/info',
+    },
+    providers: {
+      stt: config.enableRealtime ? 'Deepgram' : 'OpenAI Whisper',
+      llm: 'OpenAI GPT-4o-mini',
+      tts: 'ElevenLabs',
+    },
+    config: {
+      maxHistoryMessages: config.session.maxHistoryMessages,
+      audioChunkSizeMs: config.audio.chunkSizeMs,
+      maxSilenceMs: config.audio.maxSilenceMs,
+    },
+  });
+});
 
-    const filePath = req.file.path;        // sin extensión
-    const newPath = filePath + '.webm';    // añadimos .webm para Whisper
-    fs.renameSync(filePath, newPath);
+// ========================================
+// MANEJO DE ERRORES
+// ========================================
+app.use((err, req, res, next) => {
+  logger.error('Error no capturado:', err);
+  res.status(500).json({
+    error: 'Internal Server Error',
+    message: config.nodeEnv === 'development' ? err.message : undefined,
+  });
+});
 
-    // 1) Transcripción con Whisper
-    const transcription = await openai.audio.transcriptions.create({
-      model: 'whisper-1',
-      file: fs.createReadStream(newPath),
-      language: 'es',
-      temperature: 0,
-      prompt:
-        'Transcribe de forma literal y clara lo que dice el usuario en español de España. ' +
-        'Es una conversación telefónica para concertar una cita de instalación de fibra óptica. ' +
-        'Si hay ruido, silencio o no entiendes nada claro, devuelve texto muy corto o vacío.'
-    });
+// ========================================
+// MANEJO DE SEÑALES DE SISTEMA
+// ========================================
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM recibido. Cerrando servidor gracefully...');
+  server.close(() => {
+    logger.info('Servidor cerrado');
+    process.exit(0);
+  });
+});
 
-    const textoUsuario = (transcription.text || '').trim();
-    console.log('Transcripción cruda:', textoUsuario);
+process.on('SIGINT', () => {
+  logger.info('SIGINT recibido. Cerrando servidor gracefully...');
+  server.close(() => {
+    logger.info('Servidor cerrado');
+    process.exit(0);
+  });
+});
 
-    // Filtro de silencios / frases basura
-    const frasesBasura = [
-      'Subtítulos realizados por la comunidad de Amara.org'
-    ];
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Promise Rejection:', reason);
+});
 
-    if (!textoUsuario || frasesBasura.includes(textoUsuario)) {
-      const msgSilencio =
-        'No he llegado a oírte bien, ¿te importa repetirlo un momento?';
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception:', error);
+  process.exit(1);
+});
 
-      const providerFromRequest = req.body?.ttsProvider;
-      const providerDefault = process.env.TTS_PROVIDER_DEFAULT || 'openai';
-      const ttsProvider = (providerFromRequest || providerDefault).toLowerCase();
-
-      let audioBase64Silencio;
-      if (ttsProvider === 'elevenlabs') {
-        console.log('Usando ElevenLabs TTS (silencio)');
-        audioBase64Silencio = await ttsElevenLabs(msgSilencio);
-      } else {
-        console.log('Usando OpenAI TTS (silencio)');
-        audioBase64Silencio = await ttsOpenAI(msgSilencio);
-      }
-
-      fs.unlink(newPath, () => {});
-
-      return res.json({
-        transcript: '',
-        answer: msgSilencio,
-        audio: audioBase64Silencio
-      });
-    }
-
-    console.log('Transcripción limpia:', textoUsuario);
-
-    // 2) Construir mensajes con MEMORIA + nuevo system prompt
-    const systemMessage = {
-      role: 'system',
-      content: `
-Eres un agente de voz que trabaja para la subcontrata Zener, en España.
-Tu trabajo es hablar con clientes de Vodafone para concertar una cita de instalación de fibra óptica en su domicilio.
-
-IDENTIDAD Y TONO
-- Te comportas como un trabajador HUMANO de Zener, nunca digas que eres una IA ni que eres un sistema automático.
-- Hablas SIEMPRE en español de España (castellano peninsular).
-- Tuteas al cliente de forma educada: "vale", "genial", "perfecto", "mira", "te cuento", "si te parece", "de acuerdo", "venga".
-- Tono: profesional pero cercano, como un teleoperador de oficina en España.
-- Evita expresiones claramente latinoamericanas (ahorita, chévere, ustedes, etc.).
-- Si el cliente está nervioso o perdido, mantén la calma y explica las cosas con claridad.
-
-NOMBRE DEL CLIENTE
-- El nombre del cliente recibido desde la aplicación es: "${clientName || 'desconocido'}".
-- Si el nombre está informado, utilízalo en el saludo inicial y en la conversación ("señor ${clientName}", "Perfecto, ${clientName}").
-- Si NO se ha informado nombre, en lugar de usar un nombre inventado, di: "¿Hablo con el titular de la línea?".
-
-PRIMERA INTERVENCIÓN (DESPUÉS DE LOS TONOS)
-- Si en el historial NO hay todavía ningún mensaje de asistente (es decir, es la primera vez que hablas con el cliente en esta llamada),
-  DEBES empezar SIEMPRE con un saludo muy concreto:
-  - Si hay nombre de cliente: "Hola, buenos días, le llamo del servicio técnico de Vodafone. ¿Hablo con ${clientName || 'el titular de la línea'}?"
-  - Si no hay nombre: "Hola, buenos días, le llamo del servicio técnico de Vodafone. ¿Hablo con el titular de la línea?"
-- Este saludo solo se usa en tu PRIMER mensaje de la conversación. En el resto de turnos NO debes repetirlo.
-
-OBJETIVO PRINCIPAL DE LA LLAMADA
-A lo largo de la conversación, tu objetivo es dejar cerrada una cita de instalación de fibra. Para ello debes:
-
-  1) Confirmar el nombre del cliente si aún no ha quedado claro.
-  2) Confirmar la dirección de la instalación.
-  3) Preguntar si tiene acceso al cuarto de telecomunicaciones (RITI) del edificio.
-  4) Si NO tiene acceso al RITI:
-     - Explica que debe pedir la llave al presidente de la comunidad, al administrador de fincas o al conserje.
-     - Recalca que sin esa llave el técnico no podrá completar la instalación.
-
-FRANJAS HORARIAS PARA AGENDAR
-- Trabajamos siempre con días laborables.
-- En condiciones normales, ofreces CITA en:
-  - Lunes, miércoles y viernes laborables,
-  - En la franja de 12:00 a 14:00.
-- Si el cliente pide una cita que esté CLARAMENTE a más de 6 días en el futuro (por ejemplo "dentro de dos semanas", "para la siguiente semana", etc.):
-  - En ese caso, SOLO puedes ofrecer:
-    - Lunes por la tarde (por ejemplo entre las 16:00 y las 18:00),
-    - Y jueves por la tarde (por ejemplo entre las 16:00 y las 18:00).
-- Indica siempre de forma clara día y franja horaria cuando propongas o cierres la cita.
-- Si el cliente te propone un día/hora fuera de estas reglas, intenta adaptarlo a la opción más parecida que cumpla las restricciones y explícaselo con naturalidad.
-
-COMPORTAMIENTO CONVERSACIONAL
-- Usa frases cortas y claras (2–4 frases por turno).
-- Puedes usar alguna pequeña muletilla natural de vez en cuando, como:
-  "vale", "a ver", "mira", "pues", "mmm", "déjame que lo piense un segundo", siempre en cantidades moderadas.
-- Si el cliente te da datos (nombre, dirección, disponibilidad…), reconócelos de forma natural:
-  "Perfecto, Iván", "Vale, entonces en Calle Habana 1, ¿verdad?".
-- Apóyate en el historial de la conversación (mensajes anteriores) para no repetir preguntas innecesarias.
-- Si el cliente pregunta por temas fuera de tu ámbito (facturas, tarifas, incidencias de red), responde muy brevemente
-  y redirige: "Eso lo llevan desde atención al cliente de Vodafone, pero si te parece dejamos primero cerrada la cita de instalación."
-- Si no entiendes algo, pídele que repita: "Perdona, ahí no te he escuchado bien, ¿me lo puedes repetir?".
-
-REMATE DE LA CITA
-- Cuando ya tengáis un día y franja más o menos claros, repite el resumen:
-  "Entonces quedamos el [día] a las [hora/franja], en la dirección que hemos comentado. Acuérdate de tener la llave del RITI."
-- Despídete de forma sencilla y profesional:
-  "Genial, pues muchas gracias, que tengas buen día."
-
-Ten en cuenta todo el historial de mensajes (user/assistant) que te envío y responde de forma coherente con él.
-      `.trim()
-    };
-
-    const messages = [
-      systemMessage,
-      ...history,
-      { role: 'user', content: textoUsuario }
-    ];
-
-    const respuesta = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages
-    });
-
-    const contenido =
-      respuesta.choices?.[0]?.message?.content ||
-      'No he recibido contenido de la IA.';
-
-    // 3) Elegir proveedor de TTS
-    const providerFromRequest = req.body?.ttsProvider;
-    const providerDefault = process.env.TTS_PROVIDER_DEFAULT || 'openai';
-    const ttsProvider = (providerFromRequest || providerDefault).toLowerCase();
-
-    let audioBase64;
-    if (ttsProvider === 'elevenlabs') {
-      console.log('Usando ElevenLabs TTS');
-      audioBase64 = await ttsElevenLabs(contenido);
-    } else {
-      console.log('Usando OpenAI TTS');
-      audioBase64 = await ttsOpenAI(contenido);
-    }
-
-    // Borrar archivo temporal
-    fs.unlink(newPath, () => {});
-
-    // Devolver transcript + respuesta + audio
-    res.json({
-      transcript: textoUsuario,
-      answer: contenido,
-      audio: audioBase64
-    });
-  } catch (err) {
-    console.error('Error en /stt:', err);
-    res.status(500).json({ error: err.message });
+// ========================================
+// ARRANCAR SERVIDOR
+// ========================================
+server.listen(config.port, () => {
+  logger.info('========================================');
+  logger.info('🎙️  VOICE AGENT ZENER - SERVIDOR INICIADO');
+  logger.info('========================================');
+  logger.info(`Puerto: ${config.port}`);
+  logger.info(`Entorno: ${config.nodeEnv}`);
+  logger.info(`Modo: ${config.enableRealtime ? 'REALTIME (v2) 🚀' : 'LEGACY (v1) 📞'}`);
+  logger.info('========================================');
+  logger.info('Endpoints disponibles:');
+  logger.info(`  - Health check: http://localhost:${config.port}/health`);
+  logger.info(`  - Información: http://localhost:${config.port}/info`);
+  
+  if (config.enableRealtime) {
+    logger.info(`  - WebSocket: ws://localhost:${config.port}/v2/voice`);
+  } else {
+    logger.info(`  - POST STT: http://localhost:${config.port}/stt`);
   }
+  
+  logger.info('========================================');
+  logger.info('Proveedores configurados:');
+  logger.info(`  - STT: ${config.enableRealtime ? 'Deepgram' : 'OpenAI Whisper'}`);
+  logger.info(`  - LLM: OpenAI ${config.openai.model}`);
+  logger.info(`  - TTS: ElevenLabs ${config.elevenlabs.model}`);
+  logger.info('========================================');
+  logger.info('✓ Servidor listo para recibir conexiones');
+  logger.info('========================================');
 });
 
-// =============================
-// WEBSOCKET: debug audio
-// =============================
-wss.on('connection', (ws) => {
-  console.log('Cliente conectado');
-
-  ws.on('message', async (message, isBinary) => {
-    try {
-      if (!isBinary) {
-        const text = message.toString();
-        console.log('Texto recibido:', text);
-
-        if (text.startsWith('TEST DESDE EL NAVEGADOR')) {
-          const respuesta = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages: [
-              {
-                role: 'system',
-                content: 'Eres un asistente amable y conciso que responde en español de España.'
-              },
-              {
-                role: 'user',
-                content: 'Pon un saludo muy corto para probar la conexión.'
-              }
-            ]
-          });
-
-          const contenido =
-            respuesta.choices?.[0]?.message?.content ||
-            'No he recibido contenido de la IA.';
-
-          console.log('Respuesta IA (WS):', contenido);
-          ws.send('Respuesta IA: ' + contenido);
-        } else {
-          ws.send('Recibido texto: ' + text);
-        }
-
-        return;
-      }
-
-      const buf = Buffer.from(message);
-      console.log('Audio chunk recibido, tamaño:', buf.length);
-      ws.send('OK: he recibido audio (' + buf.length + ' bytes)');
-    } catch (err) {
-      console.error('Error procesando mensaje WS:', err);
-      ws.send('Error en servidor: ' + err.message);
-    }
-  });
-
-  ws.on('close', () => {
-    console.log('Cliente desconectado');
-  });
-});
-
-// =============================
-// ARRANQUE DEL SERVIDOR
-// =============================
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log('Servidor escuchando en puerto', PORT);
-});
+export default app;
