@@ -158,22 +158,37 @@ export class GroqSTT extends STTProvider {
       }
 
     } catch (error) {
-      // Logging mejorado del error
-      const errorDetails = {
-        message: error.message,
-        type: error.constructor.name,
-        status: error.status,
-        statusText: error.statusText,
-        response: error.response?.data,
-      };
-
-      logger.error(`Error transcribiendo con Groq [${this.sessionId}]:`, errorDetails);
+      // LOGGING EXPLÍCITO - Siempre se verá
+      console.error('=================================');
+      console.error('ERROR EN GROQ STT');
+      console.error('Session:', this.sessionId);
+      console.error('Error Message:', error.message);
+      console.error('Error Name:', error.name);
+      console.error('Error Status:', error.status || 'N/A');
+      console.error('Error Code:', error.code || 'N/A');
+      console.error('Full Error:', JSON.stringify(error, null, 2));
+      console.error('=================================');
+      
+      // También con logger (por si console no se ve)
+      logger.error({
+        sessionId: this.sessionId,
+        errorMessage: error.message,
+        errorName: error.name,
+        errorStatus: error.status,
+        errorCode: error.code,
+        errorType: typeof error,
+        audioBufferLength: this.audioBuffer.length,
+      }, `GROQ ERROR: ${error.message}`);
       
       // Si es error de archivo muy pequeño, ignorar silenciosamente
       if (error.message?.includes('too small') || 
           error.message?.includes('minimum') ||
-          error.message?.includes('duration')) {
-        logAudio('audio_chunk_too_small', { sessionId: this.sessionId });
+          error.message?.includes('duration') ||
+          error.message?.includes('Invalid')) {
+        logAudio('audio_chunk_ignored', { 
+          sessionId: this.sessionId,
+          reason: error.message 
+        });
         return;
       }
 
