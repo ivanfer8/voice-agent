@@ -17,57 +17,197 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 2rem;
-    }
-
-    .container {
-      max-width: 800px;
-      width: 100%;
-      background: rgba(15, 23, 42, 0.96);
-      border-radius: 1.5rem;
-      padding: 2rem;
-      border: 1px solid rgba(148, 163, 184, 0.22);
-      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.9);
-    }
-
-    .header {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-
-    .header h1 {
-      margin: 0 0 0.5rem;
-      font-size: 2rem;
-      background: linear-gradient(135deg, #facc15 0%, #f97316 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .header p {
-      margin: 0;
-      color: #9ca3af;
-      font-size: 0.9rem;
-    }
-
-    .status-card {
-      background: rgba(6, 78, 59, 0.2);
-      border: 1px solid rgba(52, 211, 153, 0.6);
-      border-radius: 1rem;
       padding: 1.5rem;
-      margin-bottom: 1.5rem;
     }
 
-    .status-card.disconnected {
-      background: rgba(127, 29, 29, 0.2);
-      border-color: rgba(239, 68, 68, 0.6);
+    .app {
+      width: 100%;
+      max-width: 1200px;
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+      gap: 1.5rem;
+      align-items: flex-start;
     }
 
-    .status-card h3 {
-      margin: 0 0 1rem;
-      font-size: 0.9rem;
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .panel {
+      background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.12), transparent 55%),
+                  radial-gradient(circle at bottom right, rgba(139, 92, 246, 0.18), transparent 55%),
+                  linear-gradient(to bottom right, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.98));
+      border-radius: 1.25rem;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      padding: 1.5rem;
+      box-shadow:
+        0 18px 50px rgba(15, 23, 42, 0.8),
+        0 0 50px rgba(56, 189, 248, 0.1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 0 0, rgba(56, 189, 248, 0.12), transparent 55%),
+        radial-gradient(circle at 100% 100%, rgba(129, 140, 248, 0.14), transparent 55%);
+      opacity: 0.8;
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+
+    .panel-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+      gap: 1.5rem;
+    }
+
+    .title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
+      color: #e5e7eb;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .title-pill {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      color: #e5e7eb;
+      background: linear-gradient(to right, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98));
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
       color: #9ca3af;
+      max-width: 480px;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.4rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      padding: 0.2rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      color: #cbd5f5;
+      background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.26), rgba(15, 23, 42, 0.95));
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: linear-gradient(to bottom right, #22c55e, #4ade80);
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.35);
+    }
+
+    .badge-icon {
+      font-size: 0.75rem;
+    }
+
+    .status {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.5rem;
+      text-align: right;
+    }
+
+    .status-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: #9ca3af;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0.8rem;
+      border-radius: 999px;
+      background: radial-gradient(circle at top left, rgba(34, 197, 94, 0.2), rgba(15, 23, 42, 0.85));
+      border: 1px solid rgba(34, 197, 94, 0.6);
+      color: #bbf7d0;
+      font-size: 0.75rem;
+      font-weight: 500;
+      box-shadow:
+        0 0 0 1px rgba(21, 128, 61, 0.35),
+        0 8px 20px rgba(22, 163, 74, 0.4);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #bbf7d0 0, #22c55e 60%);
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.8);
+    }
+
+    .status-pill.text-orange {
+      border-color: rgba(249, 115, 22, 0.7);
+      background: radial-gradient(circle at top left, rgba(249, 115, 22, 0.18), rgba(15, 23, 42, 0.9));
+      color: #fed7aa;
+      box-shadow:
+        0 0 0 1px rgba(251, 146, 60, 0.35),
+        0 8px 20px rgba(249, 115, 22, 0.4);
+    }
+
+    .status-pill.text-red {
+      border-color: rgba(248, 113, 113, 0.7);
+      background: radial-gradient(circle at top left, rgba(248, 113, 113, 0.2), rgba(15, 23, 42, 0.9));
+      color: #fee2e2;
+      box-shadow:
+        0 0 0 1px rgba(248, 113, 113, 0.35),
+        0 8px 20px rgba(239, 68, 68, 0.4);
+    }
+
+    .status-text {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .status-icon {
+      font-size: 0.85rem;
+      color: #e5e7eb;
     }
 
     .status-info {
@@ -80,408 +220,1539 @@
       width: 12px;
       height: 12px;
       border-radius: 50%;
-      background: #22c55e;
-      box-shadow: 0 0 10px #22c55e;
-      animation: pulse 2s ease-in-out infinite;
+      background: radial-gradient(circle, #22c55e 0, #166534 65%);
+      box-shadow:
+        0 0 12px rgba(34, 197, 94, 0.9),
+        0 0 30px rgba(22, 163, 74, 0.7);
     }
 
-    .status-card.disconnected .status-dot {
-      background: #ef4444;
-      box-shadow: 0 0 10px #ef4444;
+    .status-info-text {
+      font-size: 0.8rem;
+      color: #9ca3af;
     }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-
-    .controls {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      margin-bottom: 1.5rem;
+    .status-info-text span {
+      color: #e5e7eb;
     }
 
     .input-group {
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
     }
 
-    .input-group label {
-      font-size: 0.85rem;
+    label {
+      font-size: 0.8rem;
       color: #9ca3af;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
     }
 
-    .input-group input {
-      background: #020617;
+    label span {
+      font-size: 0.9rem;
       color: #e5e7eb;
-      border: 1px solid #4b5563;
-      border-radius: 0.5rem;
-      padding: 0.75rem;
-      font-size: 1rem;
+    }
+
+    .input-hint {
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+
+    input[type="text"], select {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: rgba(15, 23, 42, 0.9);
+      color: #e5e7eb;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    }
+
+    input[type="text"]:focus, select:focus {
+      border-color: rgba(59, 130, 246, 0.7);
+      box-shadow:
+        0 0 0 1px rgba(59, 130, 246, 0.4),
+        0 0 0 6px rgba(37, 99, 235, 0.25);
+      background: rgba(15, 23, 42, 1);
+    }
+
+    .input-prefix {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .input-prefix span {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #6b7280;
+      padding: 0.1rem 0.4rem;
+      border-radius: 999px;
+      border: 1px solid rgba(55, 65, 81, 0.8);
+      background: rgba(15, 23, 42, 0.95);
+    }
+
+    .mode-switcher {
+      display: inline-flex;
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 999px;
+      padding: 0.25rem;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      box-shadow:
+        inset 0 0 0 1px rgba(15, 23, 42, 1),
+        0 10px 30px rgba(15, 23, 42, 0.8);
+    }
+
+    .mode-option {
+      padding: 0.3rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #9ca3af;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.18s;
+    }
+
+    .mode-option span {
+      font-size: 0.85rem;
+    }
+
+    .mode-option.active {
+      background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.6), rgba(15, 23, 42, 1));
+      color: #eff6ff;
+      box-shadow:
+        0 0 0 1px rgba(37, 99, 235, 0.7),
+        0 10px 25px rgba(59, 130, 246, 0.75);
+    }
+
+    .mode-option:not(.active):hover {
+      background: rgba(15, 23, 42, 0.9);
+      color: #e5e7eb;
+    }
+
+    .mode-option .mode-label {
+      font-weight: 500;
+    }
+
+    .mode-option .mode-sub {
+      font-size: 0.65rem;
+      text-transform: none;
+      letter-spacing: 0.05em;
+      opacity: 0.9;
+    }
+
+    .mode-option-content {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      line-height: 1.2;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
     }
 
     .btn {
+      position: relative;
+      overflow: hidden;
+      padding: 0.65rem 1.2rem;
       border: none;
-      border-radius: 0.75rem;
-      padding: 1rem 2rem;
-      font-size: 1.1rem;
-      font-weight: 600;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #f9fafb;
+      font-size: 0.85rem;
+      font-weight: 500;
       cursor: pointer;
-      display: flex;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      box-shadow:
+        0 0 0 1px rgba(22, 163, 74, 0.5),
+        0 10px 25px rgba(22, 163, 74, 0.75),
+        0 0 40px rgba(34, 197, 94, 0.7);
+      transition: transform 0.12s ease-out, box-shadow 0.12s ease-out, filter 0.12s ease-out;
+    }
+
+    .btn:before {
+      content: "";
+      position: absolute;
+      inset: -50%;
+      background: radial-gradient(circle at top, rgba(248, 250, 252, 0.25), transparent 55%);
+      opacity: 0.75;
+      transform: translateY(60%);
+      transition: transform 0.3s ease-out;
+    }
+
+    .btn:hover:before {
+      transform: translateY(40%);
+    }
+
+    .btn:hover {
+      transform: translateY(-1px) scale(1.01);
+      box-shadow:
+        0 0 0 1px rgba(22, 163, 74, 0.7),
+        0 14px 35px rgba(22, 163, 74, 0.85),
+        0 0 55px rgba(34, 197, 94, 0.8);
+      filter: brightness(1.03);
+    }
+
+    .btn:active {
+      transform: translateY(0) scale(0.99);
+      box-shadow:
+        0 0 0 1px rgba(22, 163, 74, 0.7),
+        0 6px 20px rgba(21, 128, 61, 0.9);
+    }
+
+    .btn-secondary {
+      background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.7), rgba(15, 23, 42, 1));
+      box-shadow:
+        0 0 0 1px rgba(59, 130, 246, 0.7),
+        0 10px 25px rgba(59, 130, 246, 0.8),
+        0 0 40px rgba(59, 130, 246, 0.8);
+    }
+
+    .btn-secondary:hover {
+      box-shadow:
+        0 0 0 1px rgba(59, 130, 246, 0.8),
+        0 14px 35px rgba(59, 130, 246, 0.9),
+        0 0 55px rgba(59, 130, 246, 0.9);
+    }
+
+    .btn-icon {
+      width: 1.1rem;
+      height: 1.1rem;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 0.75rem;
-      transition: all 0.2s;
-    }
-
-    .btn-primary {
-      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-      color: #0b1120;
-      box-shadow: 0 10px 25px rgba(34, 197, 94, 0.4);
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 15px 35px rgba(34, 197, 94, 0.5);
-    }
-
-    .btn-danger {
-      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-      color: #fee2e2;
-      box-shadow: 0 10px 25px rgba(239, 68, 68, 0.4);
-    }
-
-    .btn-danger:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 15px 35px rgba(239, 68, 68, 0.5);
-    }
-
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none !important;
-    }
-
-    .conversation {
-      background: rgba(3, 7, 18, 0.6);
-      border-radius: 1rem;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-      min-height: 300px;
-      max-height: 400px;
-      overflow-y: auto;
-    }
-
-    .message {
-      margin-bottom: 1rem;
-      padding: 1rem;
-      border-radius: 0.75rem;
-      animation: fadeIn 0.3s ease-in;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .message.user {
-      background: rgba(37, 99, 235, 0.15);
-      border-left: 3px solid #3b82f6;
-    }
-
-    .message.assistant {
-      background: rgba(34, 197, 94, 0.15);
-      border-left: 3px solid #22c55e;
-    }
-
-    .message.system {
-      background: rgba(168, 85, 247, 0.15);
-      border-left: 3px solid #a855f7;
-      font-size: 0.9rem;
-      font-style: italic;
-    }
-
-    .message-label {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: #9ca3af;
-      margin-bottom: 0.5rem;
-    }
-
-    .message-content {
-      color: #e5e7eb;
-      line-height: 1.5;
-    }
-
-    .logs {
-      background: rgba(3, 7, 18, 0.6);
-      border-radius: 1rem;
-      padding: 1rem;
-      max-height: 200px;
-      overflow-y: auto;
-      font-family: 'Courier New', monospace;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.15);
       font-size: 0.8rem;
     }
 
-    .log-entry {
-      padding: 0.25rem 0;
+    .btn-text-sub {
+      font-size: 0.7rem;
+      opacity: 0.9;
+      font-weight: 400;
+    }
+
+    .btn[disabled] {
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn[disabled]:hover {
+      transform: none;
+      filter: none;
+    }
+
+    .btn-danger {
+      background: radial-gradient(circle at top left, rgba(248, 113, 113, 0.7), rgba(127, 29, 29, 1));
+      box-shadow:
+        0 0 0 1px rgba(248, 113, 113, 0.7),
+        0 10px 25px rgba(248, 113, 113, 0.8),
+        0 0 40px rgba(248, 113, 113, 0.8);
+    }
+
+    .btn-danger:hover {
+      box-shadow:
+        0 0 0 1px rgba(248, 113, 113, 0.8),
+        0 14px 35px rgba(248, 113, 113, 0.9),
+        0 0 55px rgba(248, 113, 113, 0.9);
+    }
+
+    .btn-pill-text {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      line-height: 1.2;
+    }
+
+    .btn-pill-main {
+      font-size: 0.8rem;
+    }
+
+    .btn-pill-sub {
+      font-size: 0.65rem;
+      opacity: 0.9;
+    }
+
+    .agent-card {
+      background: linear-gradient(
+        135deg,
+        rgba(15, 23, 42, 0.98),
+        rgba(15, 23, 42, 0.98)
+      );
+      border-radius: 1.25rem;
+      border: 1px solid rgba(148, 163, 184, 0.55);
+      padding: 1.5rem;
+      margin-top: 0.75rem;
+      box-shadow:
+        0 18px 45px rgba(15, 23, 42, 0.8),
+        0 0 45px rgba(56, 189, 248, 0.2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .agent-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.1), transparent 60%),
+        radial-gradient(circle at bottom right, rgba(168, 85, 247, 0.16), transparent 60%);
+      opacity: 0.9;
+      pointer-events: none;
+      mix-blend-mode: soft-light;
+    }
+
+    .agent-card-content {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 1.25rem;
+      align-items: center;
+    }
+
+    @media (max-width: 600px) {
+      .agent-card-content {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .avatar-wrapper {
+      position: relative;
+      width: 64px;
+      height: 64px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 20%, #38bdf8, #4f46e5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow:
+        0 0 0 2px rgba(15, 23, 42, 1),
+        0 0 0 4px rgba(59, 130, 246, 0.7),
+        0 12px 25px rgba(15, 23, 42, 0.9);
+    }
+
+    .avatar-inner {
+      width: 52px;
+      height: 52px;
+      border-radius: 999px;
+      background:
+        radial-gradient(circle at 30% 20%, rgba(248, 250, 252, 0.9), rgba(209, 213, 219, 1)),
+        radial-gradient(circle at 70% 80%, rgba(191, 219, 254, 0.8), rgba(191, 219, 254, 0.4));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #1f2937;
+      font-weight: 700;
+      font-size: 1.15rem;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      box-shadow:
+        inset 0 0 0 1px rgba(148, 163, 184, 0.8),
+        0 0 25px rgba(129, 140, 248, 0.6);
+    }
+
+    .avatar-wave {
+      position: absolute;
+      inset: -10px;
+      border-radius: 999px;
+      border: 1px dashed rgba(191, 219, 254, 0.5);
+      border-top-color: rgba(59, 130, 246, 0.9);
+      animation: spin 2.5s linear infinite;
+      opacity: 0.75;
+    }
+
+    .avatar-glow {
+      position: absolute;
+      inset: -18px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.16), transparent 70%);
+      opacity: 0.6;
+      filter: blur(1px);
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .agent-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .agent-name {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #e5e7eb;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .agent-tag {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
       color: #9ca3af;
-      border-bottom: 1px solid rgba(75, 85, 99, 0.3);
     }
 
-    .log-entry:last-child {
-      border-bottom: none;
+    .agent-role {
+      font-size: 0.8rem;
+      color: #9ca3af;
     }
 
-    .log-entry.error {
-      color: #ef4444;
+    .agent-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.4rem;
     }
 
-    .log-entry.success {
-      color: #22c55e;
+    .agent-meta-item {
+      font-size: 0.75rem;
+      color: #9ca3af;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(55, 65, 81, 0.9);
     }
 
-    .log-timestamp {
+    .agent-meta-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #38bdf8;
+      box-shadow: 0 0 0 2px rgba(15, 23, 42, 1);
+    }
+
+    .agent-meta-separator {
+      width: 1px;
+      height: 14px;
+      background: linear-gradient(to bottom, rgba(148, 163, 184, 0.5), rgba(55, 65, 81, 0.5));
+    }
+
+    .agent-meta-strong {
+      color: #e5e7eb;
+      font-weight: 500;
+    }
+
+    .conversation {
+      background: rgba(15, 23, 42, 0.96);
+      border-radius: 1.1rem;
+      border: 1px solid rgba(51, 65, 85, 0.85);
+      padding: 1.1rem;
+      margin-top: 1.2rem;
+      max-height: 410px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      position: relative;
+    }
+
+    .conversation::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 10% 0, rgba(56, 189, 248, 0.18), transparent 45%),
+        radial-gradient(circle at 110% 120%, rgba(129, 140, 248, 0.18), transparent 55%);
+      opacity: 0.85;
+      pointer-events: none;
+      mix-blend-mode: soft-light;
+    }
+
+    .conversation-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.35rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .conversation-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.13em;
+      color: #9ca3af;
+      padding: 0.16rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid rgba(71, 85, 105, 0.9);
+      background: rgba(15, 23, 42, 0.85);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .conversation-indicator {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #22c55e 0, #166534 65%);
+      box-shadow:
+        0 0 10px rgba(34, 197, 94, 0.95),
+        0 0 25px rgba(21, 128, 61, 0.8);
+    }
+
+    .conversation-tagline {
+      font-size: 0.75rem;
       color: #6b7280;
-      margin-right: 0.5rem;
+    }
+
+    .messages {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 0.25rem;
+      margin-top: 0.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .message {
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-start;
+      font-size: 0.85rem;
+    }
+
+    .message-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      flex-shrink: 0;
+    }
+
+    .message-avatar.agent {
+      background: radial-gradient(circle at 30% 20%, #38bdf8, #4f46e5);
+      color: #eff6ff;
+      box-shadow:
+        0 0 0 2px rgba(15, 23, 42, 1),
+        0 0 0 3px rgba(129, 140, 248, 0.7);
+    }
+
+    .message-avatar.user {
+      background: radial-gradient(circle at 30% 20%, #22c55e, #15803d);
+      color: #ecfdf5;
+      box-shadow:
+        0 0 0 2px rgba(15, 23, 42, 1),
+        0 0 0 3px rgba(74, 222, 128, 0.7);
+    }
+
+    .message-bubble {
+      max-width: 100%;
+      padding: 0.6rem 0.85rem;
+      border-radius: 0.85rem;
+      position: relative;
+      border: 1px solid rgba(51, 65, 85, 0.9);
+      background: radial-gradient(circle at top left, rgba(15, 23, 42, 1), rgba(15, 23, 42, 0.98));
+    }
+
+    .message.agent .message-bubble {
+      border-color: rgba(59, 130, 246, 0.9);
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.25), rgba(15, 23, 42, 0.98));
+      box-shadow:
+        0 0 0 1px rgba(59, 130, 246, 0.8),
+        0 8px 20px rgba(37, 99, 235, 0.7);
+    }
+
+    .message.user .message-bubble {
+      border-color: rgba(34, 197, 94, 0.9);
+      background:
+        radial-gradient(circle at top left, rgba(22, 163, 74, 0.25), rgba(15, 23, 42, 0.98));
+      box-shadow:
+        0 0 0 1px rgba(34, 197, 94, 0.8),
+        0 8px 20px rgba(22, 163, 74, 0.7);
+    }
+
+    .message-role {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #9ca3af;
+      margin-bottom: 0.15rem;
+    }
+
+    .message-text {
+      font-size: 0.85rem;
+      color: #e5e7eb;
+      line-height: 1.4;
+    }
+
+    .message-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-top: 0.25rem;
+      font-size: 0.7rem;
+      color: #6b7280;
+    }
+
+    .message-meta-pill {
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid rgba(51, 65, 85, 0.9);
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    .message-timestamp {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .typing-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.45rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid rgba(51, 65, 85, 0.9);
+      background: rgba(15, 23, 42, 0.95);
+      font-size: 0.75rem;
+      color: #9ca3af;
+      margin-top: 0.35rem;
+      align-self: flex-start;
+    }
+
+    .typing-dots {
+      display: inline-flex;
+      gap: 0.15rem;
+    }
+
+    .typing-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      animation: typing-bounce 1s infinite ease-in-out;
+    }
+
+    .typing-dot:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes typing-bounce {
+      0%, 80%, 100% {
+        transform: translateY(0);
+        opacity: 0.45;
+      }
+      40% {
+        transform: translateY(-2px);
+        opacity: 1;
+      }
+    }
+
+    .settings {
+      background: rgba(15, 23, 42, 0.98);
+      border-radius: 1.1rem;
+      border: 1px solid rgba(51, 65, 85, 0.85);
+      padding: 1rem;
+      margin-top: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .settings-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .settings-label {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .settings-label span {
+      color: #e5e7eb;
+      font-weight: 500;
+    }
+
+    .settings-value {
+      font-size: 0.8rem;
+      color: #6b7280;
+    }
+
+    .settings-tag {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #94a3b8;
+      padding: 0.18rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid rgba(51, 65, 85, 0.9);
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    .settings-divider {
+      height: 1px;
+      background: linear-gradient(to right, rgba(51, 65, 85, 0), rgba(71, 85, 105, 0.9), rgba(51, 65, 85, 0));
+      margin: 0.25rem 0;
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 900px) {
+      .settings-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 600px) {
+      .settings-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .settings-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .settings-item-label {
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+
+    .settings-item-value {
+      font-size: 0.85rem;
+      color: #e5e7eb;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .settings-item-pill {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      padding: 0.16rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid rgba(51, 65, 85, 0.95);
+      background: rgba(15, 23, 42, 0.95);
+      color: #9ca3af;
+    }
+
+    .settings-item-pill strong {
+      color: #e5e7eb;
+    }
+
+    .quick-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    @media (max-width: 900px) {
+      .quick-stats {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .stat-card {
+      background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.3), rgba(15, 23, 42, 0.98));
+      border-radius: 0.9rem;
+      padding: 0.75rem 0.8rem;
+      border: 1px solid rgba(65, 105, 225, 0.85);
+      box-shadow:
+        0 0 0 1px rgba(37, 99, 235, 0.45),
+        0 12px 20px rgba(15, 23, 42, 0.95);
+      font-size: 0.8rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .stat-card.secondary {
+      background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.16), rgba(15, 23, 42, 0.98));
+      border-color: rgba(59, 130, 246, 0.85);
+    }
+
+    .stat-card.tertiary {
+      background: radial-gradient(circle at top left, rgba(45, 212, 191, 0.2), rgba(15, 23, 42, 0.98));
+      border-color: rgba(45, 212, 191, 0.85);
+    }
+
+    .stat-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: #9ca3af;
+    }
+
+    .stat-value {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #e5e7eb;
+    }
+
+    .stat-sub {
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+
+    .stat-trend {
+      font-size: 0.75rem;
+      color: #22c55e;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .stat-trend.negative {
+      color: #f97316;
+    }
+
+    .stat-trend-arrow {
+      font-size: 0.8rem;
+    }
+
+    .log-panel {
+      background: radial-gradient(circle at top left, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.98));
+      border-radius: 1.25rem;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      padding: 1.25rem;
+      box-shadow:
+        0 18px 45px rgba(15, 23, 42, 0.9),
+        0 0 50px rgba(59, 130, 246, 0.25);
+    }
+
+    .log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .log-title {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #e5e7eb;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .log-title span {
+      font-size: 0.9rem;
+    }
+
+    .log-badge {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      padding: 0.18rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid rgba(71, 85, 105, 0.9);
+      color: #9ca3af;
+      background: rgba(15, 23, 42, 0.95);
+    }
+
+    .log-subtitle {
+      font-size: 0.75rem;
+      color: #6b7280;
+      margin-top: 0.2rem;
+    }
+
+    .log-list {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.78rem;
+      background: radial-gradient(circle at top left, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 1));
+      border-radius: 0.9rem;
+      border: 1px solid rgba(30, 64, 175, 0.7);
+      padding: 0.75rem;
+      max-height: 520px;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .log-list::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 0 0, rgba(59, 130, 246, 0.2), transparent 40%),
+        radial-gradient(circle at 100% 100%, rgba(56, 189, 248, 0.2), transparent 50%);
+      opacity: 0.7;
+      mix-blend-mode: soft-light;
+      pointer-events: none;
+    }
+
+    .log-item {
+      position: relative;
+      z-index: 1;
+      padding: 0.4rem 0.5rem;
+      border-radius: 0.6rem;
+      margin-bottom: 0.25rem;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(30, 64, 175, 0.6);
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .log-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .log-text {
+      color: #e5e7eb;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .log-meta {
+      font-size: 0.7rem;
+      color: #6b7280;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .log-tag {
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid rgba(30, 64, 175, 0.8);
+      background: rgba(30, 64, 175, 0.25);
+      color: #bfdbfe;
+    }
+
+    .log-type-info .log-item {
+      border-color: rgba(59, 130, 246, 0.75);
+    }
+
+    .log-type-success .log-item {
+      border-color: rgba(22, 163, 74, 0.9);
+    }
+
+    .log-type-error .log-item {
+      border-color: rgba(239, 68, 68, 0.9);
+    }
+
+    .log-type-debug .log-item {
+      border-style: dashed;
+      border-color: rgba(148, 163, 184, 0.9);
+    }
+
+    .log-footer {
+      margin-top: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.7rem;
+      color: #6b7280;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    .chip {
+      padding: 0.16rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: rgba(15, 23, 42, 0.95);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      color: #9ca3af;
+    }
+
+    .chip-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #10b981;
+    }
+
+    .chip-dot.warn {
+      background: #f97316;
+    }
+
+    .chip-dot.error {
+      background: #ef4444;
+    }
+
+    .floating-badge {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      padding: 0.18rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: rgba(15, 23, 42, 0.98);
+      color: #9ca3af;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      z-index: 10;
+    }
+
+    .floating-badge-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow:
+        0 0 0 2px rgba(15, 23, 42, 1),
+        0 0 12px rgba(34, 197, 94, 0.9);
+    }
+
+    .floating-badge-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: #9ca3af;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <!-- Header -->
-    <div class="header">
-      <h1>🎙️ ZIM Voice Agent</h1>
-      <p>Modo Realtime - Streaming Bidireccional</p>
-    </div>
+  <div class="app">
+    <div class="panel">
+      <div class="panel-content">
+        <div class="panel-header">
+          <div class="title-group">
+            <div class="title">
+              <span style="display:inline-flex;align-items:center;justify-content:center;width:1.6rem;height:1.6rem;border-radius:999px;background:radial-gradient(circle at 30% 20%,#22c55e,#16a34a);box-shadow:0 0 0 2px rgba(15,23,42,1),0 0 0 4px rgba(34,197,94,0.6);font-size:0.95rem;">Z</span>
+              ZIM · Agente Virtual Voz
+              <span class="title-pill">Demo interna Zener</span>
+            </div>
+            <div class="subtitle">
+              Agente de agenda comercial que llama a clientes de Vodafone para concertar citas de instalación I+M.
+            </div>
+            <div class="badge-row">
+              <div class="badge">
+                <span class="badge-dot"></span>
+                <span class="badge-icon">🤖</span>
+                <span>IA Realtime con Llamadas</span>
+              </div>
+              <div class="badge">
+                <span class="badge-icon">🎤</span>
+                <span>STT Groq Whisper</span>
+              </div>
+              <div class="badge">
+                <span class="badge-icon">🗣️</span>
+                <span>Voz ElevenLabs</span>
+              </div>
+            </div>
+          </div>
+          <div class="status">
+            <div class="status-label">Estado demo</div>
+            <div id="connectionStatus" class="status-pill">
+              <span class="status-dot"></span>
+              <span id="connectionStatusText">Desconectado</span>
+            </div>
+            <div class="status-text">
+              <span class="status-icon">📡</span>
+              <span id="statusDetail">Esperando conexión...</span>
+            </div>
+          </div>
+        </div>
 
-    <!-- Status Card -->
-    <div class="status-card" id="statusCard">
-      <h3>Estado de Conexión</h3>
-      <div class="status-info">
-        <div class="status-dot"></div>
-        <span id="statusText">Desconectado</span>
+        <div class="input-group">
+          <label for="clientName">
+            <span>Nombre del cliente para la demo</span>
+          </label>
+          <div>
+            <div class="input-prefix">
+              <span>Demo</span>
+              <input type="text" id="clientName" placeholder="Ej: Iván Fernández" />
+            </div>
+            <div class="input-hint">
+              <span>Solo visual, el agente usará este nombre en el saludo inicial.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label for="ttsEngine">
+            <span>Motor de voz</span>
+          </label>
+          <select id="ttsEngine">
+            <option value="elevenlabs" selected>ElevenLabs (voz realista)</option>
+            <option value="openai">OpenAI TTS</option>
+          </select>
+          <div class="input-hint">
+            Cambia el motor de voz en caliente. El flujo de IA es el mismo, solo cambia quién sintetiza la voz.
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="startCall" class="btn">
+            <span class="btn-icon">📞</span>
+            <span class="btn-pill-text">
+              <span class="btn-pill-main">Iniciar llamada demo</span>
+              <span class="btn-pill-sub">Escuchar tonos de establecimiento y saludo del agente</span>
+            </span>
+          </button>
+
+          <button id="stopCall" class="btn btn-danger" disabled>
+            <span class="btn-icon">🛑</span>
+            <span class="btn-pill-text">
+              <span class="btn-pill-main">Colgar llamada</span>
+              <span class="btn-pill-sub">Finalizar conversación actual</span>
+            </span>
+          </button>
+
+          <button id="toggleLogs" class="btn btn-secondary">
+            <span class="btn-icon">📊</span>
+            <span class="btn-pill-text">
+              <span class="btn-pill-main">Ver/Ocultar logs</span>
+              <span class="btn-pill-sub">Para debugging durante las pruebas internas</span>
+            </span>
+          </button>
+        </div>
+
+        <div class="agent-card">
+          <div class="agent-card-content">
+            <div class="avatar-wrapper">
+              <div class="avatar-glow"></div>
+              <div class="avatar-wave"></div>
+              <div class="avatar-inner">
+                <span>Z</span>
+              </div>
+            </div>
+            <div class="agent-info">
+              <div class="agent-name">
+                ZIM Agent · Vodafone I+M
+              </div>
+              <div class="agent-role">
+                Agente comercial virtual de Zener para clientes Vodafone · Agendamiento de instalaciones
+              </div>
+              <div class="agent-meta">
+                <div class="agent-meta-item">
+                  <span class="agent-meta-dot"></span>
+                  <span>Activo en esta demo</span>
+                </div>
+                <div class="agent-meta-separator"></div>
+                <div class="agent-meta-item">
+                  <span class="agent-meta-strong">Linea:</span>
+                  <span>Instalaciones I+M</span>
+                </div>
+                <div class="agent-meta-item">
+                  <span class="agent-meta-strong">Operador:</span>
+                  <span>Vodafone</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="conversation">
+          <div class="conversation-header">
+            <div class="conversation-label">
+              <span class="conversation-indicator"></span>
+              <span>Transcripción en tiempo real</span>
+            </div>
+            <div class="conversation-tagline">
+              La conversación se muestra aquí: cliente vs agente
+            </div>
+          </div>
+          <div id="messages" class="messages">
+            <!-- Mensajes dinámicos -->
+          </div>
+          <div id="typingIndicator" class="typing-indicator" style="display: none;">
+            <span>El agente está pensando</span>
+            <div class="typing-dots">
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings">
+          <div class="settings-row">
+            <div class="settings-label">
+              <span>Parámetros técnicos de la demo</span>
+            </div>
+            <div class="settings-tag">
+              Interno Zener · No producción
+            </div>
+          </div>
+          <div class="settings-divider"></div>
+          <div class="settings-grid">
+            <div class="settings-item">
+              <div class="settings-item-label">Motor de IA</div>
+              <div class="settings-item-value">
+                <span>OpenAI GPT-4o Mini</span>
+                <span class="settings-item-pill"><strong>Modo:</strong> Realtime-like</span>
+              </div>
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-label">STT (voz a texto)</div>
+              <div class="settings-item-value">
+                <span>Groq Whisper-large-v3</span>
+                <span class="settings-item-pill"><strong>Proveedor:</strong> Groq</span>
+              </div>
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-label">TTS (texto a voz)</div>
+              <div class="settings-item-value">
+                <span id="ttsEngineLabel">ElevenLabs</span>
+                <span class="settings-item-pill"><strong>Modo:</strong> Streaming</span>
+              </div>
+            </div>
+          </div>
+          <div class="quick-stats">
+            <div class="stat-card">
+              <div class="stat-label">Latencia objetivo</div>
+              <div class="stat-value">≈ 1.0s</div>
+              <div class="stat-sub">Entre que el cliente habla y la IA responde</div>
+            </div>
+            <div class="stat-card secondary">
+              <div class="stat-label">Calidad voz</div>
+              <div class="stat-value">Casi humana</div>
+              <div class="stat-sub">Voces ElevenLabs realistas para uso comercial</div>
+            </div>
+            <div class="stat-card tertiary">
+              <div class="stat-label">Estado demo</div>
+              <div class="stat-value">Beta interna</div>
+              <div class="stat-sub">Pensada para validar concepto con dirección</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Controls -->
-    <div class="controls">
-      <div class="input-group">
-        <label for="clientName">Nombre del Cliente</label>
-        <input type="text" id="clientName" placeholder="Ej: Iván López" value="Pepe Leches">
+    <div class="log-panel">
+      <div class="log-header">
+        <div>
+          <div class="log-title">
+            <span>📊 Panel de logs y métricas</span>
+          </div>
+          <div class="log-subtitle">
+            Aquí se ve todo lo que ocurre por debajo: eventos de WebSocket, STT, TTS y flujo de IA.
+          </div>
+        </div>
+        <div class="chip-row">
+          <div class="chip">
+            <span class="chip-dot"></span>
+            <span>Conexiones WebSocket</span>
+          </div>
+          <div class="chip">
+            <span class="chip-dot warn"></span>
+            <span>Errores STT / TTS</span>
+          </div>
+          <div class="chip">
+            <span class="chip-dot error"></span>
+            <span>Errores críticos</span>
+          </div>
+        </div>
       </div>
-
-      <button class="btn btn-primary" id="btnConnect">
-        <span>🔌</span>
-        <span>Conectar</span>
-      </button>
-    </div>
-
-    <!-- Conversation -->
-    <div class="conversation" id="conversation">
-      <div class="message system">
-        <div class="message-label">Sistema</div>
-        <div class="message-content">Pulsa "Conectar" para iniciar la conversación con el agente.</div>
+      <div id="logList" class="log-list">
+        <!-- Logs dinámicos -->
+      </div>
+      <div class="log-footer">
+        <div>⌛ Últimos eventos de la sesión actual</div>
+        <button id="clearLogs" class="chip">
+          <span class="chip-dot"></span>
+          <span>Limpiar logs</span>
+        </button>
       </div>
     </div>
-
-    <!-- Logs -->
-    <details>
-      <summary style="cursor: pointer; color: #9ca3af; margin-bottom: 1rem;">
-        📋 Ver Logs (Debug)
-      </summary>
-      <div class="logs" id="logs"></div>
-    </details>
   </div>
 
   <script>
-    // ========================================
-    // VARIABLES GLOBALES
-    // ========================================
     let ws = null;
-    let audioStream = null;
     let mediaRecorder = null;
-    let audioContext = null;
+    let audioStream = null;
     let isConnected = false;
     let isRecording = false;
+    let isAgentSpeaking = false;
+    let typingTimeout = null;
 
-    const btnConnect = document.getElementById('btnConnect');
-    const statusCard = document.getElementById('statusCard');
-    const statusText = document.getElementById('statusText');
-    const conversation = document.getElementById('conversation');
-    const logs = document.getElementById('logs');
+    const startCallBtn = document.getElementById('startCall');
+    const stopCallBtn = document.getElementById('stopCall');
+    const toggleLogsBtn = document.getElementById('toggleLogs');
+    const clearLogsBtn = document.getElementById('clearLogs');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const connectionStatusText = document.getElementById('connectionStatusText');
+    const statusDetail = document.getElementById('statusDetail');
+    const ttsEngineSelect = document.getElementById('ttsEngine');
+    const ttsEngineLabel = document.getElementById('ttsEngineLabel');
+    const messagesContainer = document.getElementById('messages');
+    const typingIndicator = document.getElementById('typingIndicator');
+    const logList = document.getElementById('logList');
     const clientNameInput = document.getElementById('clientName');
 
-    // ========================================
-    // LOGGING
-    // ========================================
     function addLog(message, type = 'info') {
-      const timestamp = new Date().toLocaleTimeString();
-      const logEntry = document.createElement('div');
-      logEntry.className = `log-entry ${type}`;
-      logEntry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span>${message}`;
-      logs.appendChild(logEntry);
-      logs.scrollTop = logs.scrollHeight;
-      console.log(`[${timestamp}] ${message}`);
-    }
+      const now = new Date();
+      const timestamp = now.toLocaleTimeString('es-ES', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
 
-    function addMessage(role, content) {
-      const message = document.createElement('div');
-      message.className = `message ${role}`;
-      
-      const label = document.createElement('div');
-      label.className = 'message-label';
-      label.textContent = role === 'user' ? 'Usuario' : role === 'assistant' ? 'Agente' : 'Sistema';
-      
-      const messageContent = document.createElement('div');
-      messageContent.className = 'message-content';
-      messageContent.textContent = content;
-      
-      message.appendChild(label);
-      message.appendChild(messageContent);
-      conversation.appendChild(message);
-      conversation.scrollTop = conversation.scrollHeight;
-    }
+      const logItem = document.createElement('div');
+      logItem.className = `log-item log-type-${type}`;
 
-    // ========================================
-    // WEBSOCKET CONNECTION
-    // ========================================
-    async function connectWebSocket() {
-      try {
-        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-        const wsUrl = 'wss://voice-agent-n8j7l9-9f812b-192-168-30-43.traefik.me/v2/voice';
-        
-        addLog(`Conectando a: ${wsUrl}`, 'info');
-        
-        ws = new WebSocket(wsUrl);
-        ws.binaryType = 'arraybuffer';
+      const textSpan = document.createElement('div');
+      textSpan.className = 'log-text';
+      textSpan.textContent = message;
 
-        ws.onopen = () => {
-          addLog('WebSocket conectado ✓', 'success');
-          updateStatus('connected');
-          
-          // Enviar inicialización
-          const initMessage = {
-            type: 'init',
-            metadata: {
-              clientName: clientNameInput.value || 'Cliente'
-            }
-          };
-          
-          addLog('Enviando inicialización...', 'info');
-          ws.send(JSON.stringify(initMessage));
-        };
+      const metaDiv = document.createElement('div');
+      metaDiv.className = 'log-meta';
 
-        ws.onmessage = async (event) => {
-          if (typeof event.data === 'string') {
-            // Mensaje JSON (eventos)
-            const message = JSON.parse(event.data);
-            handleServerEvent(message);
-          } else {
-            // Mensaje binario (audio)
-            handleServerAudio(event.data);
-          }
-        };
+      const timeSpan = document.createElement('span');
+      timeSpan.textContent = timestamp;
 
-        ws.onerror = (error) => {
-          addLog(`Error en WebSocket: ${error}`, 'error');
-          console.error('WebSocket error:', error);
-        };
+      const tagSpan = document.createElement('span');
+      tagSpan.className = 'log-tag';
+      tagSpan.textContent = type.toUpperCase();
 
-        ws.onclose = () => {
-          addLog('WebSocket cerrado', 'error');
-          updateStatus('disconnected');
-          cleanup();
-        };
+      metaDiv.appendChild(timeSpan);
+      metaDiv.appendChild(tagSpan);
 
-      } catch (error) {
-        addLog(`Error conectando: ${error.message}`, 'error');
-        updateStatus('disconnected');
+      logItem.appendChild(textSpan);
+      logItem.appendChild(metaDiv);
+
+      logList.insertBefore(logItem, logList.firstChild);
+
+      const items = logList.children;
+      if (items.length > 200) {
+        logList.removeChild(items[items.length - 1]);
       }
     }
 
-    // ========================================
-    // MANEJO DE EVENTOS DEL SERVIDOR
-    // ========================================
-    function handleServerEvent(message) {
-      const { type, event, data, error: errorMsg } = message;
+    function setConnectionStatus(status, detail) {
+      connectionStatus.classList.remove('text-orange', 'text-red');
 
-      if (type === 'error') {
-        addLog(`❌ Error: ${errorMsg}`, 'error');
-        addMessage('system', `Error: ${errorMsg}`);
-        return;
+      if (status === 'connected') {
+        connectionStatusText.textContent = 'Conectado';
+        statusDetail.textContent = detail || 'IA lista para hablar con el cliente.';
+      } else if (status === 'connecting') {
+        connectionStatus.classList.add('text-orange');
+        connectionStatusText.textContent = 'Conectando...';
+        statusDetail.textContent = detail || 'Estableciendo conexión de voz y IA...';
+      } else if (status === 'error') {
+        connectionStatus.classList.add('text-red');
+        connectionStatusText.textContent = 'Error';
+        statusDetail.textContent = detail || 'Error en la conexión o en alguno de los servicios.';
+      } else {
+        connectionStatusText.textContent = 'Desconectado';
+        statusDetail.textContent = detail || 'Pulsa "Iniciar llamada demo" para comenzar.';
       }
+    }
 
-      if (type === 'event') {
-        switch (event) {
-          case 'ready':
-            addLog('✓ Sesión lista', 'success');
-            addMessage('system', 'Sesión iniciada. Comienza a hablar...');
-            startRecording();
-            break;
+    function addMessage(role, text, meta = {}) {
+      const wrapper = document.createElement('div');
+      wrapper.className = `message ${role}`;
 
-          case 'transcript_partial':
-            addLog(`🎤 Parcial: "${data.text}"`, 'info');
-            break;
+      const avatar = document.createElement('div');
+      avatar.className = `message-avatar ${role}`;
+      avatar.textContent = role === 'agent' ? 'Z' : 'T';
 
-          case 'transcript_final':
-            addLog(`🎤 Final: "${data.text}"`, 'success');
-            addMessage('user', data.text);
-            break;
+      const bubble = document.createElement('div');
+      bubble.className = 'message-bubble';
 
-          case 'llm_chunk':
-            // Acumular chunks del LLM (podrías mostrarlos en tiempo real)
-            addLog(`🤖 LLM: "${data.chunk}"`, 'info');
-            break;
+      const roleLabel = document.createElement('div');
+      roleLabel.className = 'message-role';
+      roleLabel.textContent = role === 'agent' ? 'Agente ZIM' : 'Cliente';
 
-          case 'agent_finished_speaking':
-            addLog('✓ Agente terminó de hablar', 'success');
-            break;
+      const textDiv = document.createElement('div');
+      textDiv.className = 'message-text';
+      textDiv.textContent = text;
 
-          case 'interruption_processed':
-            addLog('⚠️ Interrupción procesada', 'info');
-            break;
+      bubble.appendChild(roleLabel);
+      bubble.appendChild(textDiv);
 
-          default:
-            addLog(`Evento: ${event}`, 'info');
+      if (meta.timestamp || meta.tag) {
+        const metaDiv = document.createElement('div');
+        metaDiv.className = 'message-meta';
+
+        if (meta.timestamp) {
+          const timeSpan = document.createElement('span');
+          timeSpan.className = 'message-timestamp';
+          timeSpan.textContent = meta.timestamp;
+          metaDiv.appendChild(timeSpan);
         }
+
+        if (meta.tag) {
+          const tagSpan = document.createElement('span');
+          tagSpan.className = 'message-meta-pill';
+          tagSpan.textContent = meta.tag;
+          metaDiv.appendChild(tagSpan);
+        }
+
+        bubble.appendChild(metaDiv);
+      }
+
+      wrapper.appendChild(avatar);
+      wrapper.appendChild(bubble);
+
+      messagesContainer.appendChild(wrapper);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function setTypingIndicator(visible) {
+      if (visible) {
+        typingIndicator.style.display = 'inline-flex';
+      } else {
+        typingIndicator.style.display = 'none';
       }
     }
 
-    // ========================================
-    // MANEJO DE AUDIO DEL SERVIDOR
-    // ========================================
-    let currentAssistantMessage = '';
+    function getNowTime() {
+      const now = new Date();
+      return now.toLocaleTimeString('es-ES', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    }
 
-    function handleServerAudio(audioData) {
-      try {
-        // Reproducir audio recibido
-        const audioBlob = new Blob([audioData], { type: 'audio/mpeg' });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
-        
-        audio.play().then(() => {
-          addLog('🔊 Reproduciendo respuesta del agente', 'success');
-        }).catch(err => {
-          addLog(`Error reproduciendo audio: ${err}`, 'error');
-        });
+    function setupWebSocket() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/v2/voice`;
 
-        // Limpiar URL después de reproducir
-        audio.onended = () => {
-          URL.revokeObjectURL(audioUrl);
+      addLog(`🔌 Conectando a WebSocket: ${wsUrl}`, 'info');
+      setConnectionStatus('connecting', 'Inicializando llamada demo...');
+
+      ws = new WebSocket(wsUrl);
+
+      ws.binaryType = 'arraybuffer';
+
+      ws.onopen = () => {
+        addLog('✅ WebSocket conectado', 'success');
+        isConnected = true;
+
+        const settings = {
+          type: 'settings',
+          ttsProvider: ttsEngineSelect.value,
+          clientName: clientNameInput.value || 'Cliente demo',
         };
 
-      } catch (error) {
-        addLog(`Error procesando audio: ${error.message}`, 'error');
-      }
+        ws.send(JSON.stringify(settings));
+        addLog(`⚙️ Enviada configuración inicial: ${JSON.stringify(settings)}`, 'debug');
+
+        startRecording();
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          if (typeof event.data === 'string') {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'session') {
+              const clientName = clientNameInput.value || 'Cliente demo';
+              setConnectionStatus('connected', `Sesión activa para ${clientName}. Habla cuando quieras.`);
+              addLog(`🧩 Sesión establecida: ${data.sessionId}`, 'info');
+
+              addMessage('agent', `Hola, buenos días. Le llamo del servicio técnico de Vodafone. ¿Hablo con ${clientName}?`, {
+                timestamp: getNowTime(),
+                tag: 'Saludo inicial'
+              });
+            } else if (data.type === 'transcript') {
+              const { role, text, final } = data;
+
+              if (role === 'user') {
+                addMessage('user', text, {
+                  timestamp: getNowTime(),
+                  tag: final ? 'Cliente (final)' : 'Cliente (parcial)'
+                });
+                addLog(`🎤 Transcripción cliente: ${text}`, final ? 'info' : 'debug');
+              } else if (role === 'assistant') {
+                setTypingIndicator(!final);
+                if (final) {
+                  addMessage('agent', text, {
+                    timestamp: getNowTime(),
+                    tag: 'Agente (final)'
+                  });
+                  addLog(`🗣️ Respuesta agente: ${text}`, 'info');
+                } else {
+                  addLog(`🧩 Respuesta parcial agente: ${text}`, 'debug');
+                }
+              }
+            } else if (data.type === 'status') {
+              addLog(`📡 Estado: ${data.message}`, 'info');
+              statusDetail.textContent = data.message;
+            } else if (data.type === 'error') {
+              addLog(`❌ Error en servidor: ${data.message}`, 'error');
+              setConnectionStatus('error', data.message);
+            }
+          } else {
+            addLog(`🎧 Audio recibido del agente (${event.data.byteLength || 'desconocido'} bytes)`, 'debug');
+          }
+        } catch (error) {
+          addLog(`❌ Error procesando mensaje WebSocket: ${error.message}`, 'error');
+        }
+      };
+
+      ws.onclose = () => {
+        addLog('🔌 WebSocket cerrado', 'info');
+        isConnected = false;
+        stopRecording();
+        setConnectionStatus('disconnected', 'La llamada demo ha finalizado.');
+        startCallBtn.disabled = false;
+        stopCallBtn.disabled = true;
+      };
+
+      ws.onerror = (error) => {
+        addLog(`❌ Error WebSocket: ${error.message || 'Error desconocido'}`, 'error');
+        setConnectionStatus('error', 'Error en la conexión WebSocket');
+      };
     }
 
-    // ========================================
-    // GRABACIÓN DE AUDIO
-    // ========================================
     async function startRecording() {
       try {
         addLog('Solicitando permiso de micrófono...', 'info');
@@ -497,12 +1768,11 @@
         addLog('✓ Permiso concedido', 'success');
 
         mediaRecorder = new MediaRecorder(audioStream, {
-           mimeType: 'audio/webm;codecs=opus'
+          mimeType: 'audio/webm;codecs=opus'
         });
 
         mediaRecorder.ondataavailable = (event) => {
           if (event.data.size > 0 && ws && ws.readyState === WebSocket.OPEN) {
-            // Enviar chunk de audio al servidor
             event.data.arrayBuffer().then(buffer => {
               ws.send(buffer);
               addLog(`📤 Audio enviado: ${buffer.byteLength} bytes`, 'info');
@@ -520,7 +1790,7 @@
           isRecording = false;
         };
 
-        // Iniciar grabación con chunks de 100ms
+        // Iniciar grabación con chunks de ~1s
         mediaRecorder.start(1000);
 
       } catch (error) {
@@ -534,67 +1804,95 @@
       }
       
       if (audioStream) {
-        audioStream.getTracks().forEach(track => track.stop());
+        const tracks = audioStream.getTracks();
+        tracks.forEach(track => track.stop());
         audioStream = null;
       }
     }
 
-    // ========================================
-    // UI UPDATES
-    // ========================================
-    function updateStatus(status) {
-      if (status === 'connected') {
-        statusCard.classList.remove('disconnected');
-        statusText.textContent = 'Conectado - Listo para conversar';
-        btnConnect.classList.remove('btn-primary');
-        btnConnect.classList.add('btn-danger');
-        btnConnect.innerHTML = '<span>❌</span><span>Desconectar</span>';
-        isConnected = true;
-      } else {
-        statusCard.classList.add('disconnected');
-        statusText.textContent = 'Desconectado';
-        btnConnect.classList.remove('btn-danger');
-        btnConnect.classList.add('btn-primary');
-        btnConnect.innerHTML = '<span>🔌</span><span>Conectar</span>';
-        isConnected = false;
-      }
+    function startCall() {
+      if (isConnected) return;
+      clearLogs();
+      addLog('▶️ Iniciando llamada demo...', 'info');
+      setConnectionStatus('connecting');
+      startCallBtn.disabled = true;
+      stopCallBtn.disabled = false;
+
+      messagesContainer.innerHTML = '';
+
+      const initialClientName = clientNameInput.value || 'Cliente demo';
+
+      addMessage('agent', `Iniciando demo de llamada para ${initialClientName}. Escucharás los tonos de establecimiento y el saludo del agente.`, {
+        timestamp: getNowTime(),
+        tag: 'Sistema'
+      });
+
+      setTypingIndicator(true);
+
+      setTimeout(() => {
+        addLog('📞 Simulando tonos de llamada...', 'debug');
+      }, 300);
+
+      setupWebSocket();
     }
 
-    // ========================================
-    // CLEANUP
-    // ========================================
-    function cleanup() {
-      stopRecording();
-      
-      if (ws) {
+    function stopCall() {
+      addLog('⏹️ Finalizando llamada demo...', 'info');
+      if (ws && ws.readyState === WebSocket.OPEN) {
         ws.close();
-        ws = null;
+      } else {
+        setConnectionStatus('disconnected', 'La llamada demo se ha colgado.');
       }
-      
-      isConnected = false;
-      isRecording = false;
+
+      stopRecording();
+      startCallBtn.disabled = false;
+      stopCallBtn.disabled = true;
+      setTypingIndicator(false);
     }
 
-    // ========================================
-    // EVENT LISTENERS
-    // ========================================
-    btnConnect.onclick = () => {
-      if (isConnected) {
-        addLog('Desconectando...', 'info');
-        cleanup();
-        updateStatus('disconnected');
+    function toggleLogs() {
+      if (logList.style.display === 'none') {
+        logList.style.display = 'block';
+        toggleLogsBtn.querySelector('.btn-pill-main').textContent = 'Ocultar logs';
       } else {
-        connectWebSocket();
+        logList.style.display = 'none';
+        toggleLogsBtn.querySelector('.btn-pill-main').textContent = 'Ver logs';
       }
-    };
+    }
 
-    // Cleanup al cerrar la página
-    window.addEventListener('beforeunload', cleanup);
+    function clearLogs() {
+      logList.innerHTML = '';
+      addLog('🧹 Logs limpiados', 'debug');
+    }
 
-    // ========================================
-    // INICIALIZACIÓN
-    // ========================================
-    addLog('Aplicación cargada. Lista para conectar.', 'success');
+    ttsEngineSelect.addEventListener('change', () => {
+      const engine = ttsEngineSelect.value;
+      ttsEngineLabel.textContent = engine === 'elevenlabs' ? 'ElevenLabs' : 'OpenAI TTS';
+      addLog(`🎛️ Motor de voz cambiado a: ${ttsEngineLabel.textContent}`, 'info');
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        const msg = {
+          type: 'updateTTS',
+          ttsProvider: engine
+        };
+        ws.send(JSON.stringify(msg));
+        addLog(`📡 Notificado nuevo TTS al servidor: ${JSON.stringify(msg)}`, 'debug');
+      }
+    });
+
+    startCallBtn.addEventListener('click', startCall);
+    stopCallBtn.addEventListener('click', stopCall);
+    toggleLogsBtn.addEventListener('click', toggleLogs);
+    clearLogsBtn.addEventListener('click', clearLogs);
+
+    window.addEventListener('beforeunload', () => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+      stopRecording();
+    });
+
+    logList.style.display = 'block';
   </script>
 </body>
 </html>
