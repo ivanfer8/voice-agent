@@ -188,24 +188,24 @@ class GroqSTT extends STTProvider {
 
       if (this.transcriptCallback) {
         // De Groq sólo tenemos finales, marcamos isFinal = true
-        await this.transcriptCallback(text, true, 1.0);
+        this.transcriptCallback(text, true, 1.0);
       }
     } catch (error) {
       // LOGGING EXPLÍCITO - Siempre se verá
-      console.log('=================================');
-      console.log('ERROR EN GROQ STT');
-      console.log('Session:', this.sessionId);
-      console.log(
+      console.error('=================================');
+      console.error('ERROR EN GROQ STT');
+      console.error('Session:', this.sessionId);
+      console.error(
         'Error Message:',
         error?.status
           ? `${error.status} ${JSON.stringify(error.error || error)}`
           : error?.message || String(error)
       );
-      console.log('Error Name:', error?.name || 'Error');
-      console.log('Error Status:', error?.status || 'N/A');
-      console.log('Error Code:', error?.code || 'N/A');
-      console.log('Full Error:', JSON.stringify(error, null, 2));
-      console.log('=================================');
+      console.error('Error Name:', error?.name || 'Error');
+      console.error('Error Status:', error?.status || 'N/A');
+      console.error('Error Code:', error?.code || 'N/A');
+      console.error('Full Error:', JSON.stringify(error, null, 2));
+      console.error('=================================');
 
       const errorMessage =
         error?.status
