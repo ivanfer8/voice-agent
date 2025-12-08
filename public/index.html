@@ -1672,21 +1672,26 @@
 
       ws.binaryType = 'arraybuffer';
 
-      ws.onopen = () => {
-        addLog('✅ WebSocket conectado', 'success');
-        isConnected = true;
+    ws.onopen = () => {
+      addLog('✅ WebSocket conectado', 'success');
+      isConnected = true;
 
-        const settings = {
-          type: 'settings',
-          ttsProvider: ttsEngineSelect.value,
+      // Mensaje correcto para el backend: type = 'init'
+      const initMessage = {
+        type: 'init',
+        metadata: {
           clientName: clientNameInput.value || 'Cliente demo',
-        };
-
-        ws.send(JSON.stringify(settings));
-        addLog(`⚙️ Enviada configuración inicial: ${JSON.stringify(settings)}`, 'debug');
-
-        startRecording();
+          ttsProvider: ttsEngineSelect ? (ttsEngineSelect.value || 'elevenlabs') : 'elevenlabs',
+        },
       };
+
+      ws.send(JSON.stringify(initMessage));
+      addLog(`⚙️ Enviada inicialización: ${JSON.stringify(initMessage)}`, 'debug');
+
+      // Empezar a grabar audio
+      startRecording();
+    };
+
 
       ws.onmessage = (event) => {
         try {
