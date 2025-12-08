@@ -7,11 +7,11 @@ import { convertWebMBufferToMP3 } from '../../utils/audio-converter.js';
 const logger = createModuleLogger('GroqSTT');
 
 /**
- * Implementación de STT usando Groq Whisper con conversión a MP3
+ * Implementación de STT usando Groq Whisper con acumulación de chunks
  * 
  * Flujo:
- * 1. Recibe audio WebM del navegador
- * 2. Convierte a MP3 usando ffmpeg
+ * 1. Acumula chunks WebM durante 2-3 segundos
+ * 2. Convierte el buffer acumulado a MP3 usando ffmpeg
  * 3. Envía MP3 a Groq Whisper
  * 4. Retorna transcripción
  */
@@ -23,6 +23,12 @@ class GroqSTT extends STTProvider {
     this.transcriptCallback = null;
     this.errorCallback = null;
     this.isActive = false;
+    
+    // Buffer para acumular chunks
+    this.audioBuffer = [];
+    this.bufferSize = 0;
+    this.minBufferSize = 60000; // ~2-3 segundos de audio
+    this.processingInterval = null;
   }
 
   async connect(sessionId) {
@@ -38,7 +44,11 @@ class GroqSTT extends STTProvider {
       });
 
       this.isActive = true;
-      logger.info(`Groq STT conectado [${sessionId}]`);
+      
+      // Iniciar procesamiento periódico del buffer
+      this.startBufferProcessing();
+      
+      logger.info(`Groq STT conectado [${sessionId}] - Modo acumulación activado`);
 
       const connectTime = Date.now();
       logLatency('groq_connect', connectTime, { sessionId });
@@ -50,7 +60,53 @@ class GroqSTT extends STTProvider {
   }
 
   /**
-   * Recibe audio WebM, convierte a MP3 y transcribe
+   * Inicia el procesamiento periódico del buffer acumulado
+   */
+  startBufferProcessing() {
+    // Procesar buffer cada 2 segundos
+    this.processingInterval = setInterval(async () => {
+      if (this.bufferSize >= this.minBufferSize) {
+        await this.processAccumulatedBuffer();
+      }
+    }, 2000);
+    
+    logger.debug(`Buffer processing iniciado [${this.sessionId}]`);
+  }
+
+  /**
+   * Procesa el buffer acumulado
+   */
+  async processAccumulatedBuffer() {
+    if (this.audioBuffer.length === 0) return;
+
+    try {
+      // Combinar todos los chunks en un solo Buffer
+      const combinedBuffer = Buffer.concat(this.audioBuffer);
+      
+      logger.debug(`Procesando buffer acumulado: ${combinedBuffer.length} bytes de ${this.audioBuffer.length} chunks`);
+      
+      // Limpiar buffer
+      this.audioBuffer = [];
+      this.bufferSize = 0;
+      
+      // Transcribir
+      await this.transcribeChunk(combinedBuffer);
+      
+    } catch (error) {
+      logger.error(`Error procesando buffer acumulado [${this.sessionId}]:`, error);
+      
+      // En caso de error, limpiar buffer para no bloquear
+      this.audioBuffer = [];
+      this.bufferSize = 0;
+      
+      if (this.errorCallback) {
+        this.errorCallback(error);
+      }
+    }
+  }
+
+  /**
+   * Acumula audio en el buffer
    */
   async sendAudio(audioBuffer) {
     if (!this.isActive) {
@@ -65,18 +121,25 @@ class GroqSTT extends STTProvider {
         return;
       }
 
-      // Threshold mínimo para evitar ruidos
-      if (audioBuffer.length < 10000) {
-        logAudio('chunk_too_small', {
-          sessionId: this.sessionId,
-          size: audioBuffer.length,
-        });
-        return;
+      // Añadir al buffer de acumulación
+      this.audioBuffer.push(audioBuffer);
+      this.bufferSize += audioBuffer.length;
+      
+      logAudio('chunk_accumulated', {
+        sessionId: this.sessionId,
+        chunkSize: audioBuffer.length,
+        totalBufferSize: this.bufferSize,
+        chunksCount: this.audioBuffer.length,
+      });
+      
+      // Si ya tenemos suficiente audio, procesar inmediatamente
+      if (this.bufferSize >= this.minBufferSize * 1.5) {
+        logger.debug(`Buffer lleno (${this.bufferSize} bytes), procesando inmediatamente`);
+        await this.processAccumulatedBuffer();
       }
-
-      await this.transcribeChunk(audioBuffer);
+      
     } catch (error) {
-      logger.error(`Error procesando audio [${this.sessionId}]:`, error);
+      logger.error(`Error acumulando audio [${this.sessionId}]:`, error);
       if (this.errorCallback) {
         this.errorCallback(error);
       }
@@ -84,7 +147,7 @@ class GroqSTT extends STTProvider {
   }
 
   /**
-   * Transcribe un chunk de audio WebM convirtiéndolo primero a MP3
+   * Transcribe un buffer acumulado de audio WebM convirtiéndolo primero a MP3
    */
   async transcribeChunk(audioBuffer) {
     if (!this.isActive) return;
@@ -113,7 +176,7 @@ class GroqSTT extends STTProvider {
         originalSize: audioSize,
       });
 
-      logger.debug(`Audio convertido a MP3: ${mp3Path}`);
+      logger.debug(`Audio convertido a MP3: ${mp3Path} (${conversionTime}ms)`);
 
       logAudio('sending_to_groq', {
         sessionId: this.sessionId,
@@ -152,7 +215,7 @@ class GroqSTT extends STTProvider {
         return;
       }
 
-      logger.debug(`Transcripción Groq: "${text}"`);
+      logger.info(`Transcripción Groq: "${text}"`);
 
       logAudio('transcript_received', {
         sessionId: this.sessionId,
@@ -172,6 +235,7 @@ class GroqSTT extends STTProvider {
       console.error('Error Message:', error?.message || String(error));
       console.error('Error Name:', error?.name || 'Error');
       console.error('Error Status:', error?.status || 'N/A');
+      console.error('Stack:', error?.stack);
       console.error('=================================');
 
       logger.error({
@@ -211,8 +275,22 @@ class GroqSTT extends STTProvider {
     try {
       logger.info(`Desconectando Groq STT [${this.sessionId}]`);
 
+      // Procesar cualquier audio restante en el buffer
+      if (this.bufferSize > 0) {
+        logger.debug(`Procesando audio restante antes de desconectar (${this.bufferSize} bytes)`);
+        await this.processAccumulatedBuffer();
+      }
+
+      // Detener procesamiento periódico
+      if (this.processingInterval) {
+        clearInterval(this.processingInterval);
+        this.processingInterval = null;
+      }
+
       this.isActive = false;
       this.client = null;
+      this.audioBuffer = [];
+      this.bufferSize = 0;
       this.sessionId = null;
       this.transcriptCallback = null;
       this.errorCallback = null;
@@ -233,9 +311,10 @@ class GroqSTT extends STTProvider {
       version: 'Whisper Large V3',
       model: 'whisper-large-v3',
       language: 'es',
-      format: 'MP3 (convertido desde WebM)',
-      latencyMs: 200, // incluye conversión
-      streaming: 'buffered',
+      format: 'MP3 (convertido desde WebM acumulado)',
+      latencyMs: 300, // incluye acumulación + conversión
+      streaming: 'buffered (2-3s)',
+      bufferSize: this.minBufferSize,
     };
   }
 }
