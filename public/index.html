@@ -1773,7 +1773,7 @@
         addLog('✓ Permiso concedido', 'success');
 
         mediaRecorder = new MediaRecorder(audioStream, {
-          mimeType: 'audio/wav'
+          mimeType: 'audio/webm;codecs=opus'
         });
 
         mediaRecorder.ondataavailable = (event) => {
