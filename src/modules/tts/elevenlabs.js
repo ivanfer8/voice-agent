@@ -13,6 +13,8 @@ const logger = createModuleLogger('ElevenLabsTTS');
  * - Calidad de voz superior
  * - Soporte multiidioma
  * - eleven_turbo_v2_5 para mínima latencia
+ * 
+ * FIX: cancel() ya NO cierra la conexión WebSocket
  */
 export class ElevenLabsTTS extends TTSProvider {
   constructor() {
@@ -25,6 +27,7 @@ export class ElevenLabsTTS extends TTSProvider {
     this.errorCallback = null;
     this.startTime = null;
     this.isReady = false;
+    this.isCancelled = false;
   }
 
   async connect(sessionId, voiceId = null) {
@@ -65,12 +68,19 @@ export class ElevenLabsTTS extends TTSProvider {
 
           this.ws.send(JSON.stringify(bosMessage));
           this.isReady = true;
+          this.isCancelled = false;
           resolve();
         });
 
         this.ws.on('message', (data) => {
           try {
             const response = JSON.parse(data.toString());
+
+            // Si está cancelado, ignorar audio
+            if (this.isCancelled) {
+              logger.debug('Audio ignorado (cancelado)');
+              return;
+            }
 
             // Audio chunk recibido
             if (response.audio) {
@@ -94,6 +104,7 @@ export class ElevenLabsTTS extends TTSProvider {
             // Fin de generación
             if (response.isFinal) {
               logger.info(`Síntesis completada [${sessionId}]`);
+              this.isCancelled = false; // Reset para próxima síntesis
               if (this.completeCallback) {
                 this.completeCallback();
               }
@@ -107,6 +118,11 @@ export class ElevenLabsTTS extends TTSProvider {
           } catch (parseError) {
             // Si no es JSON, asumir que es audio binario directo
             if (Buffer.isBuffer(data)) {
+              // Si está cancelado, ignorar audio
+              if (this.isCancelled) {
+                return;
+              }
+
               logAudio('tts_binary_chunk', {
                 sessionId,
                 size: data.length,
@@ -150,6 +166,9 @@ export class ElevenLabsTTS extends TTSProvider {
     }
 
     try {
+      // Reset cancel flag al empezar nueva síntesis
+      this.isCancelled = false;
+
       const message = {
         text: text,
         try_trigger_generation: flush,
@@ -186,17 +205,14 @@ export class ElevenLabsTTS extends TTSProvider {
   async cancel() {
     logger.info(`Cancelando síntesis ElevenLabs [${this.sessionId}]`);
     
-    // Enviar señal de flush para limpiar buffer
-    if (this.isConnected()) {
-      try {
-        const eosMessage = {
-          text: '',
-        };
-        this.ws.send(JSON.stringify(eosMessage));
-      } catch (error) {
-        logger.error('Error enviando cancelación:', error);
-      }
-    }
+    // Marcar como cancelado
+    // El audio que ya se generó no se enviará al callback
+    this.isCancelled = true;
+    
+    // NO enviar EOS - esto cerraría la conexión WebSocket
+    // La conexión permanece abierta para la siguiente síntesis
+    
+    logger.debug(`Síntesis cancelada, conexión permanece abierta [${this.sessionId}]`);
   }
 
   async disconnect() {
@@ -225,6 +241,7 @@ export class ElevenLabsTTS extends TTSProvider {
       this.completeCallback = null;
       this.errorCallback = null;
       this.isReady = false;
+      this.isCancelled = false;
 
     } catch (error) {
       logger.error(`Error al desconectar ElevenLabs [${this.sessionId}]:`, error);
