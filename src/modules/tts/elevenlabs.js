@@ -203,17 +203,14 @@ export class ElevenLabsTTS extends TTSProvider {
   }
 
   async cancel() {
-    logger.info(`Cancelando síntesis ElevenLabs [${this.sessionId}]`);
-    
-    // Marcar como cancelado
-    // El audio que ya se generó no se enviará al callback
-    this.isCancelled = true;
-    
-    // NO enviar EOS - esto cerraría la conexión WebSocket
-    // La conexión permanece abierta para la siguiente síntesis
-    
-    logger.debug(`Síntesis cancelada, conexión permanece abierta [${this.sessionId}]`);
+  if (this.isConnected()) {
+    const flushMessage = {
+      text: ' ',      // ✅ Espacio (no vacío)
+      flush: true     // ✅ Flush sin cerrar
+    };
+    this.ws.send(JSON.stringify(flushMessage));
   }
+}
 
   async disconnect() {
     if (!this.ws) return;
