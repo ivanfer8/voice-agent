@@ -1693,55 +1693,64 @@
     };
 
 
-      ws.onmessage = (event) => {
-        try {
-          if (typeof event.data === 'string') {
-            const data = JSON.parse(event.data);
+    // ============================================
+// CÓDIGO PARA REPRODUCIR AUDIO EN INDEX.HTML
+// ============================================
 
-            if (data.type === 'session') {
-              const clientName = clientNameInput.value || 'Cliente demo';
-              setConnectionStatus('connected', `Sesión activa para ${clientName}. Habla cuando quieras.`);
-              addLog(`🧩 Sesión establecida: ${data.sessionId}`, 'info');
+// REEMPLAZAR el socket.onmessage actual (línea 788) con esto:
 
-              addMessage('agent', `Hola, buenos días. Le llamo del servicio técnico de Vodafone. ¿Hablo con ${clientName}?`, {
-                timestamp: getNowTime(),
-                tag: 'Saludo inicial'
-              });
-            } else if (data.type === 'transcript') {
-              const { role, text, final } = data;
+ws.onmessage = async (event) => {
+  // Detectar si es mensaje JSON o binario (audio)
+  if (typeof event.data === 'string') {
+    // Mensaje JSON
+    try {
+      const data = JSON.parse(event.data);
+      
+      if (data.type === 'error') {
+        addLog('❌ Error: ' + data.message, 'ERROR');
+      } else if (data.event === 'ready') {
+        addLog('✅ Sesión lista', 'SUCCESS');
+      } else if (data.event === 'transcript_partial') {
+        addLog('🎤 [parcial] ' + data.data.text, 'INFO');
+      } else if (data.event === 'transcript_final') {
+        addLog('🎤 Usuario: ' + data.data.text, 'SUCCESS');
+      } else if (data.event === 'llm_chunk') {
+        addLog('🗣️ IA: ' + data.data.chunk, 'INFO');
+      } else if (data.event === 'agent_finished_speaking') {
+        addLog('✅ Agente terminó de hablar', 'SUCCESS');
+      } else {
+        addLog('📨 Evento: ' + (data.event || data.type), 'DEBUG');
+      }
+    } catch (err) {
+      addLog('Respuesta servidor: ' + event.data, 'DEBUG');
+    }
+  } else {
+    // Audio binario de ElevenLabs
+    addLog('🎧 Audio recibido (' + event.data.byteLength + ' bytes)', 'DEBUG');
+    
+    // REPRODUCIR AUDIO
+    try {
+      const audioBlob = new Blob([event.data], { type: 'audio/mpeg' });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      
+      audio.play().then(() => {
+        addLog('🔊 Reproduciendo respuesta', 'SUCCESS');
+      }).catch(err => {
+        addLog('❌ Error reproduciendo: ' + err.message, 'ERROR');
+        console.error('Error reproduciendo audio:', err);
+      });
 
-              if (role === 'user') {
-                addMessage('user', text, {
-                  timestamp: getNowTime(),
-                  tag: final ? 'Cliente (final)' : 'Cliente (parcial)'
-                });
-                addLog(`🎤 Transcripción cliente: ${text}`, final ? 'info' : 'debug');
-              } else if (role === 'assistant') {
-                setTypingIndicator(!final);
-                if (final) {
-                  addMessage('agent', text, {
-                    timestamp: getNowTime(),
-                    tag: 'Agente (final)'
-                  });
-                  addLog(`🗣️ Respuesta agente: ${text}`, 'info');
-                } else {
-                  addLog(`🧩 Respuesta parcial agente: ${text}`, 'debug');
-                }
-              }
-            } else if (data.type === 'status') {
-              addLog(`📡 Estado: ${data.message}`, 'info');
-              statusDetail.textContent = data.message;
-            } else if (data.type === 'error') {
-              addLog(`❌ Error en servidor: ${data.message}`, 'error');
-              setConnectionStatus('error', data.message);
-            }
-          } else {
-            addLog(`🎧 Audio recibido del agente (${event.data.byteLength || 'desconocido'} bytes)`, 'debug');
-          }
-        } catch (error) {
-          addLog(`❌ Error procesando mensaje WebSocket: ${error.message}`, 'error');
-        }
+      // Cleanup después de reproducir
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
       };
+    } catch (audioError) {
+      addLog('❌ Error procesando audio: ' + audioError.message, 'ERROR');
+      console.error('Error procesando audio:', audioError);
+    }
+  }
+};
 
       ws.onclose = () => {
         addLog('🔌 WebSocket cerrado', 'info');
