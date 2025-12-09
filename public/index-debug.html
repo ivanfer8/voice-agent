@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Voice Agent - Debug</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: system-ui;
+      background: #1a1a1a;
+      color: #fff;
+    }
+    .debug-panel {
+      background: #2a2a2a;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 15px 30px;
+      font-size: 16px;
+      margin: 10px;
+      cursor: pointer;
+      border-radius: 5px;
+      border: none;
+      background: #4CAF50;
+      color: white;
+    }
+    button:disabled {
+      background: #666;
+      cursor: not-allowed;
+    }
+    .danger {
+      background: #f44336;
+    }
+    .status {
+      padding: 15px;
+      border-radius: 5px;
+      margin: 10px 0;
+    }
+    .status.success { background: #4CAF50; }
+    .status.error { background: #f44336; }
+    .status.info { background: #2196F3; }
+    #logs {
+      background: #000;
+      padding: 15px;
+      border-radius: 5px;
+      max-height: 400px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .log-entry {
+      padding: 5px 0;
+      border-bottom: 1px solid #333;
+    }
+    .log-error { color: #ff5555; }
+    .log-success { color: #50fa7b; }
+    .log-info { color: #8be9fd; }
+    #audioQueue {
+      margin-top: 20px;
+      padding: 15px;
+      background: #333;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎙️ Voice Agent - Modo Debug</h1>
+  
+  <div class="debug-panel">
+    <h2>Estado</h2>
+    <div id="status" class="status info">Desconectado</div>
+    
+    <h2>Controles</h2>
+    <button id="btnConnect">🔌 Conectar</button>
+    <button id="btnDisconnect" class="danger" disabled>❌ Desconectar</button>
+    <button id="btnPlayTest">🔊 Test Audio (Beep)</button>
+    
+    <h2>Cola de Audio</h2>
+    <div id="audioQueue">
+      <p>Chunks recibidos: <span id="audioCount">0</span></p>
+      <p>Total bytes: <span id="audioBytes">0</span></p>
+      <button id="btnPlayQueue">▶️ Reproducir Cola Manualmente</button>
+    </div>
+  </div>
+
+  <div class="debug-panel">
+    <h2>Logs</h2>
+    <button onclick="document.getElementById('logs').innerHTML = ''">🧹 Limpiar</button>
+    <div id="logs"></div>
+  </div>
+
+  <script>
+    // ===========================================
+    // VARIABLES GLOBALES
+    // ===========================================
+    let ws = null;
+    let audioStream = null;
+    let mediaRecorder = null;
+    let isConnected = false;
+    
+    // Cola de audio para depuración
+    let audioQueue = [];
+    let audioCount = 0;
+    let audioBytes = 0;
+
+    const btnConnect = document.getElementById('btnConnect');
+    const btnDisconnect = document.getElementById('btnDisconnect');
+    const btnPlayTest = document.getElementById('btnPlayTest');
+    const btnPlayQueue = document.getElementById('btnPlayQueue');
+    const statusDiv = document.getElementById('status');
+    const logsDiv = document.getElementById('logs');
+
+    // ===========================================
+    // LOGGING
+    // ===========================================
+    function log(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      entry.textContent = `[${timestamp}] ${message}`;
+      logsDiv.appendChild(entry);
+      logsDiv.scrollTop = logsDiv.scrollHeight;
+      console.log(`[${timestamp}] ${message}`);
+    }
+
+    function setStatus(message, type = 'info') {
+      statusDiv.textContent = message;
+      statusDiv.className = `status ${type}`;
+    }
+
+    // ===========================================
+    // TEST DE AUDIO (Verificar que el navegador puede reproducir)
+    // ===========================================
+    btnPlayTest.onclick = async () => {
+      try {
+        log('🔊 Generando beep de prueba...', 'info');
+        
+        // Generar un beep simple
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 440; // La (A4)
+        gainNode.gain.value = 0.3;
+        
+        oscillator.start();
+        setTimeout(() => oscillator.stop(), 500);
+        
+        log('✅ Si escuchaste un beep, el audio funciona', 'success');
+      } catch (error) {
+        log(`❌ Error en test de audio: ${error.message}`, 'error');
+      }
+    };
+
+    // ===========================================
+    // WEBSOCKET
+    // ===========================================
+    async function connect() {
+      try {
+        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+        const wsUrl = `${protocol}://${location.host}/v2/voice`;
+        
+        log(`🔌 Conectando a: ${wsUrl}`, 'info');
+        setStatus('Conectando...', 'info');
+        
+        ws = new WebSocket(wsUrl);
+        ws.binaryType = 'arraybuffer';
+
+        ws.onopen = async () => {
+          log('✅ WebSocket conectado', 'success');
+          isConnected = true;
+          btnConnect.disabled = true;
+          btnDisconnect.disabled = false;
+          setStatus('Conectado - Hablando...', 'success');
+          
+          // Inicializar
+          const initMsg = {
+            type: 'init',
+            metadata: { clientName: 'Test Debug' }
+          };
+          ws.send(JSON.stringify(initMsg));
+          log('📤 Mensaje init enviado', 'info');
+          
+          // Iniciar grabación
+          await startRecording();
+        };
+
+        ws.onmessage = async (event) => {
+          if (typeof event.data === 'string') {
+            // Mensaje JSON
+            const data = JSON.parse(event.data);
+            log(`📨 Evento: ${data.event || data.type}`, 'info');
+            
+            if (data.type === 'error') {
+              log(`❌ Error del servidor: ${data.message}`, 'error');
+            } else if (data.event === 'ready') {
+              log('✅ Sesión lista', 'success');
+            } else if (data.event === 'transcript_final') {
+              log(`🎤 Usuario: "${data.data.text}"`, 'success');
+            } else if (data.event === 'llm_chunk') {
+              log(`🤖 IA: "${data.data.chunk}"`, 'info');
+            }
+          } else {
+            // Audio binario
+            audioCount++;
+            audioBytes += event.data.byteLength;
+            
+            document.getElementById('audioCount').textContent = audioCount;
+            document.getElementById('audioBytes').textContent = audioBytes;
+            
+            log(`🎧 AUDIO RECIBIDO: ${event.data.byteLength} bytes`, 'success');
+            
+            // Guardar en cola
+            audioQueue.push(event.data);
+            
+            // Intentar reproducir automáticamente
+            await playAudioChunk(event.data);
+          }
+        };
+
+        ws.onerror = (error) => {
+          log(`❌ Error WebSocket: ${error}`, 'error');
+          setStatus('Error de conexión', 'error');
+        };
+
+        ws.onclose = () => {
+          log('🔌 WebSocket cerrado', 'info');
+          isConnected = false;
+          btnConnect.disabled = false;
+          btnDisconnect.disabled = true;
+          setStatus('Desconectado', 'info');
+          stopRecording();
+        };
+
+      } catch (error) {
+        log(`❌ Error conectando: ${error.message}`, 'error');
+        setStatus('Error', 'error');
+      }
+    }
+
+    function disconnect() {
+      if (ws) {
+        log('🔌 Desconectando...', 'info');
+        ws.close();
+        ws = null;
+      }
+      stopRecording();
+    }
+
+    // ===========================================
+    // REPRODUCCIÓN DE AUDIO
+    // ===========================================
+    async function playAudioChunk(audioData) {
+      try {
+        log(`🔊 Intentando reproducir ${audioData.byteLength} bytes...`, 'info');
+        
+        const audioBlob = new Blob([audioData], { type: 'audio/mpeg' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        
+        // Intentar reproducir
+        const playPromise = audio.play();
+        
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            log('✅ AUDIO REPRODUCIÉNDOSE', 'success');
+          }).catch(err => {
+            log(`❌ Error reproduciendo: ${err.name} - ${err.message}`, 'error');
+            
+            if (err.name === 'NotAllowedError') {
+              log('⚠️ AUTOPLAY BLOQUEADO - Usa el botón "Reproducir Cola Manualmente"', 'error');
+            }
+          });
+        }
+
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          log('✅ Audio terminado', 'info');
+        };
+
+        audio.onerror = (e) => {
+          log(`❌ Error en elemento Audio: ${e}`, 'error');
+        };
+
+      } catch (error) {
+        log(`❌ Error procesando audio: ${error.message}`, 'error');
+      }
+    }
+
+    // Reproducir cola manualmente (para evitar problemas de autoplay)
+    btnPlayQueue.onclick = async () => {
+      if (audioQueue.length === 0) {
+        log('⚠️ No hay audio en la cola', 'info');
+        return;
+      }
+
+      log(`▶️ Reproduciendo ${audioQueue.length} chunks manualmente...`, 'info');
+
+      for (let i = 0; i < audioQueue.length; i++) {
+        await playAudioChunk(audioQueue[i]);
+        // Esperar un poco entre chunks
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      log('✅ Cola reproducida', 'success');
+    };
+
+    // ===========================================
+    // GRABACIÓN DE AUDIO
+    // ===========================================
+    async function startRecording() {
+      try {
+        log('🎤 Solicitando micrófono...', 'info');
+        
+        audioStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+
+        log('✅ Micrófono concedido', 'success');
+
+        mediaRecorder = new MediaRecorder(audioStream, {
+          mimeType: 'audio/webm;codecs=opus'
+        });
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0 && ws && ws.readyState === WebSocket.OPEN) {
+            event.data.arrayBuffer().then(buffer => {
+              ws.send(buffer);
+              log(`📤 Audio enviado: ${buffer.byteLength} bytes`, 'info');
+            });
+          }
+        };
+
+        mediaRecorder.start(1000); // Chunks de 1s
+        log('🎙️ Grabación iniciada', 'success');
+
+      } catch (error) {
+        log(`❌ Error iniciando grabación: ${error.message}`, 'error');
+      }
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        log('🎙️ Grabación detenida', 'info');
+      }
+      
+      if (audioStream) {
+        audioStream.getTracks().forEach(track => track.stop());
+        audioStream = null;
+      }
+    }
+
+    // ===========================================
+    // EVENT LISTENERS
+    // ===========================================
+    btnConnect.onclick = connect;
+    btnDisconnect.onclick = disconnect;
+
+    window.addEventListener('beforeunload', () => {
+      disconnect();
+    });
+
+    // ===========================================
+    // INICIO
+    // ===========================================
+    log('✅ Aplicación de debug cargada', 'success');
+    log('1️⃣ Primero prueba el "Test Audio (Beep)" para verificar que tu navegador puede reproducir audio', 'info');
+    log('2️⃣ Luego conecta y habla', 'info');
+    log('3️⃣ Si ves "AUDIO RECIBIDO" pero no escuchas nada, el autoplay está bloqueado', 'info');
+    log('4️⃣ En ese caso, usa "Reproducir Cola Manualmente"', 'info');
+  </script>
+</body>
+</html>
