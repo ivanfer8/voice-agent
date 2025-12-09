@@ -241,9 +241,27 @@ export class VoiceConversationHandler {
   /**
    * Sintetizar frase con TTS
    */
+/**
+   * Sintetizar frase con TTS
+   * Con reconexión automática si ElevenLabs se desconectó
+   */
   async synthesizeSentence(text, flush = false) {
     try {
       if (!text || text.trim().length === 0) return;
+
+      // VERIFICAR si ElevenLabs está conectado
+      if (!this.ttsProvider.isConnected()) {
+        logger.warn(`ElevenLabs desconectado, reconectando... [${this.sessionId}]`);
+        
+        try {
+          // Reconectar ElevenLabs
+          await this.ttsProvider.connect(this.sessionId);
+          logger.info(`✅ ElevenLabs reconectado [${this.sessionId}]`);
+        } catch (reconnectError) {
+          logger.error(`❌ Error reconectando ElevenLabs [${this.sessionId}]:`, reconnectError);
+          throw new Error('No se pudo reconectar ElevenLabs');
+        }
+      }
 
       this.isAgentSpeaking = true;
       sessionManager.updateState(this.sessionId, { ttsStreaming: true });
